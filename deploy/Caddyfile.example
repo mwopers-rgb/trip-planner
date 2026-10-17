@@ -1,0 +1,28 @@
+# Serves site/ as the trip app, e.g. from a caddy:2-alpine container with site/ mounted at /srv
+# and this file at /etc/caddy/Caddyfile. Put HTTPS in front of it (a service worker needs HTTPS):
+# Tailscale Funnel, Cloudflare Tunnel, or Caddy's own automatic certificates on a real domain.
+
+:8080 {
+	root * /srv
+	encode gzip
+
+	# The service worker and its settings must never be served stale, or phones keep the old version
+	@fresh path /sw.js /config.js /manifest.webmanifest
+	header @fresh Cache-Control "no-cache"
+
+	# Pages: always check for a newer itinerary
+	@page path / /index.html /map.html /map-data.js /offline.js
+	header @page Cache-Control "no-cache"
+
+	# Optional password. An installed iPhone app keeps its own storage apart from Safari, and a
+	# password prompt inside it is clumsy, so a hard-to-guess hostname is often the easier choice.
+	# If you do use one, leave the app's own files open so installing and updating still work.
+	# Hash: docker run --rm caddy:2-alpine caddy hash-password --plaintext 'yourpassword'
+	#
+	# @private not path /sw.js /config.js /manifest.webmanifest /icons/*
+	# basic_auth @private {
+	# 	family <paste-hash-here>
+	# }
+
+	file_server
+}

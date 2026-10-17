@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <!-- Full-bleed background so the icon also works as a maskable (cropped) icon; the art stays in the middle 80% -->
+  <defs>
+    <linearGradient id="sky" x1="0" y1="0" x2="0.35" y2="1">
+      <stop offset="0" stop-color="#4e1a16"/><stop offset=".55" stop-color="#a3352a"/><stop offset="1" stop-color="#d4762a"/>
+    </linearGradient>
+    <path id="leaf" d="M0,12 L0.6,5 L6,7 L5,3.6 L9.5,2.5 L7,0.5 L10,-3 L5.8,-2.4 L7,-7 L3.6,-4.6 L2.6,-9.5 L0.8,-6.5 L0,-11 L-0.8,-6.5 L-2.6,-9.5 L-3.6,-4.6 L-7,-7 L-5.8,-2.4 L-10,-3 L-7,0.5 L-9.5,2.5 L-5,3.6 L-6,7 L-0.6,5 Z"/>
+  </defs>
+  <rect width="512" height="512" fill="url(#sky)"/>
+  <circle cx="340" cy="196" r="54" fill="#f2c15a" opacity=".9"/>
+  <!-- Mt Yotei with a snow cap -->
+  <path d="M40,400 C120,392 170,370 210,330 L246,232 C252,220 268,220 274,232 L312,326 C350,370 400,392 472,400 L472,512 L40,512 Z" fill="#3d2a1c"/>
+  <path d="M246,232 C252,220 268,220 274,232 L284,258 L272,254 L262,264 L252,254 L240,262 Z" fill="#f6efe3"/>
+  <path d="M0,420 C110,404 200,424 300,414 C380,406 440,416 512,410 L512,512 L0,512 Z" fill="#f6efe3"/>
+  <use href="#leaf" transform="translate(168,176) rotate(-18) scale(5.2)" fill="#ffcf6e"/>
+</svg>

@@ -1,0 +1,484 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#a3352a">
+<!-- Installable app: manifest + icons; sw.js (registered by offline.js) keeps it working offline -->
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icons/icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<meta name="apple-mobile-web-app-title" content="Trip">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>Hokkaido Trip</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Shippori+Mincho:wght@600;800&display=swap" rel="stylesheet">
+<style>
+  :root {
+    color-scheme: light;
+    --paper:#f6efe3; --card:#fffcf6; --ink:#2a2320; --muted:#6e625a; --line:#e6d8c3;
+    --momiji:#b5382a; --kaki:#c9651f; --ginkgo:#d6a23a; --matsu:#3d5b47; --ai:#2e4a62;
+    --serif:"Shippori Mincho", "Hiragino Mincho ProN", "Yu Mincho", Georgia, serif;
+  }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--paper); color:var(--ink); font:18px/1.5 -apple-system, "Segoe UI", Roboto, sans-serif; }
+
+  /* Header — autumn sunset over Mt Yotei */
+  header { position:relative; overflow:hidden; color:#fff7ea; background:linear-gradient(170deg, #4e1a16 0%, #a3352a 55%, #d4762a 100%); }
+  header .inner { position:relative; z-index:1; padding:calc(22px + env(safe-area-inset-top)) 18px 92px; max-width:720px; margin:0 auto; }
+  header .jp { font-family:var(--serif); font-size:.95rem; letter-spacing:.2em; color:var(--ginkgo); }
+  h1 { margin:2px 0 2px; font-family:var(--serif); font-weight:800; font-size:2rem; line-height:1.15; }
+  header .dates { opacity:.9; font-size:1rem; }
+  header svg { position:absolute; left:0; right:0; bottom:-1px; width:100%; height:110px; }
+  .lang { position:absolute; top:14px; right:14px; z-index:2; display:flex; border:1px solid rgba(255,247,234,.6); border-radius:999px; overflow:hidden; }
+  .lang button { font:inherit; font-size:.85rem; padding:5px 11px; border:0; background:transparent; color:#fff7ea; cursor:pointer; }
+  .lang button[aria-pressed="true"] { background:#fff7ea; color:var(--momiji); font-weight:700; }
+
+  .pdf[hidden] { display:none; }
+  .pdf { font-family:inherit; cursor:pointer; display:inline-flex; align-items:center; gap:6px; margin-top:10px; padding:6px 12px; border-radius:999px; border:1px solid rgba(255,247,234,.6); color:#fff7ea; text-decoration:none; font-size:.9rem; font-weight:600; background:rgba(255,247,234,.12); }
+
+  /* Day tabs */
+  nav { position:sticky; top:0; z-index:5; display:flex; gap:8px; overflow-x:auto; padding:10px 14px; background:rgba(246,239,227,.94); backdrop-filter:blur(6px); border-bottom:1px solid var(--line); scrollbar-width:none; }
+  nav::-webkit-scrollbar { display:none; }
+  nav button { flex:0 0 auto; min-width:58px; font:inherit; padding:6px 10px; border-radius:12px; border:1px solid var(--line); background:var(--card); color:var(--ink); line-height:1.1; cursor:pointer; }
+  nav button .dow { display:block; font-size:.72rem; color:var(--muted); text-transform:uppercase; letter-spacing:.05em; }
+  nav button .dnum { display:block; font-size:1.15rem; font-weight:700; }
+  nav button[aria-selected="true"] { background:var(--momiji); border-color:var(--momiji); color:#fff; box-shadow:0 2px 6px rgba(181,56,42,.35); }
+  nav button[aria-selected="true"] .dow { color:#ffe3c9; }
+
+  main { padding:18px 16px 40px; max-width:720px; margin:0 auto; }
+
+  /* Day heading with hanko-style seal */
+  .dayhead { display:flex; align-items:center; gap:14px; margin-bottom:14px; }
+  .seal { flex:0 0 auto; width:60px; height:60px; display:grid; place-items:center; border-radius:10px; background:var(--momiji); color:#fff5ea; font-family:var(--serif); font-weight:800; line-height:1; text-align:center; box-shadow:inset 0 0 0 3px #fff5ea, inset 0 0 0 5px var(--momiji); transform:rotate(-4deg); }
+  .seal.s1, .seal.s2 { font-size:1.45rem; } .seal.s3 { font-size:1.05rem; } .seal.s4 { font-size:.82rem; }
+  .dayhead h2 { margin:0; font-family:var(--serif); font-weight:800; font-size:1.5rem; line-height:1.2; }
+  .dayhead .date { color:var(--muted); }
+
+  /* Timeline */
+  .timeline { position:relative; padding-left:22px; }
+  .timeline::before { content:""; position:absolute; left:7px; top:6px; bottom:6px; width:2px; background:repeating-linear-gradient(to bottom, var(--line) 0 6px, transparent 6px 10px); }
+  .card { position:relative; background:var(--card); border:1px solid var(--line); border-radius:14px; padding:12px 14px; margin:0 0 12px; box-shadow:0 1px 2px rgba(60,40,20,.05); }
+  .card::before { content:""; position:absolute; left:-20px; top:18px; width:12px; height:12px; border-radius:50%; background:var(--kaki); box-shadow:0 0 0 3px var(--paper); }
+  .time { display:inline-block; font-size:.82rem; font-weight:700; color:var(--kaki); letter-spacing:.02em; }
+  .title { font-weight:650; font-size:1.08rem; line-height:1.35; }
+  .notes { color:var(--muted); margin-top:4px; font-size:.95rem; }
+  a.map, a.file { display:inline-flex; align-items:center; gap:6px; margin-top:10px; padding:8px 12px; border-radius:10px; background:#eef1ea; color:var(--matsu); text-decoration:none; font-weight:650; font-size:.95rem; border:1px solid #d5dccd; }
+  a.file { margin-right:8px; }
+
+  /* Travel connectors (drives, taxis, walks) */
+  .travel { position:relative; margin:-2px 0 12px; padding:2px 4px; font-size:.9rem; color:var(--muted); }
+  .travel::before { content:""; position:absolute; left:-17px; top:9px; width:6px; height:6px; border-radius:50%; background:var(--line); }
+  .travel b { color:var(--ink); font-weight:600; }
+  .routes { display:flex; flex-wrap:wrap; gap:8px; margin:8px 0 2px; }
+  a.route { display:flex; flex-direction:column; gap:1px; padding:7px 12px; border-radius:12px; text-decoration:none; border:1px solid #d5dccd; background:#eef1ea; color:var(--matsu); line-height:1.25; }
+  a.route b { font-weight:700; font-size:.9rem; }
+  a.route span { font-size:.78rem; opacity:.85; }
+  a.route.fast { background:#f7f0e6; border-color:var(--line); color:var(--kaki); }
+
+  /* Hotel card */
+  .label { margin:22px 0 8px; font-size:.8rem; font-weight:700; letter-spacing:.06em; text-transform:uppercase; color:var(--matsu); }
+  .label .jp { font-family:var(--serif); letter-spacing:.15em; margin-right:6px; }
+  .card.hotel { border:1px solid #cbd6cc; border-left:6px solid var(--matsu); background:linear-gradient(135deg, #fffcf6 60%, #eef2ea); }
+  .card.hotel::before { background:var(--matsu); }
+  dl { display:grid; grid-template-columns:auto 1fr; gap:2px 14px; margin:10px 0 0; font-size:.95rem; }
+  dt { color:var(--muted); }
+  dd { margin:0; }
+  dd a { color:var(--ai); font-weight:600; }
+
+  footer { text-align:center; color:var(--muted); font-size:.8rem; padding:0 16px 30px; font-family:var(--serif); letter-spacing:.15em; }
+
+  /* Save for offline (offline.js fills this in) */
+  .offline-panel { max-width:720px; margin:14px auto 0; padding:0 16px; }
+  .offline-panel .box { background:var(--card); border:1px solid var(--line); border-left:6px solid var(--ai); border-radius:14px; padding:14px; }
+  .offline-panel h3 { margin:0 0 4px; font-size:1.05rem; }
+  .offline-panel p { margin:6px 0; color:var(--muted); font-size:.95rem; }
+  .offline-panel .row { display:flex; flex-wrap:wrap; gap:8px; margin-top:10px; }
+  .offline-panel button { font:inherit; font-size:.95rem; font-weight:650; padding:8px 14px; border-radius:10px; border:1px solid #d5dccd; background:#eef1ea; color:var(--matsu); cursor:pointer; }
+  .offline-panel button.primary { background:var(--matsu); border-color:var(--matsu); color:#fff; }
+  .offline-panel button:disabled { opacity:.5; cursor:default; }
+  .offline-panel progress { width:100%; height:10px; margin-top:8px; accent-color:var(--matsu); }
+  .offline-badge { position:fixed; left:50%; transform:translateX(-50%); bottom:calc(14px + env(safe-area-inset-bottom)); z-index:20;
+                   padding:5px 12px; border-radius:999px; background:var(--ink); color:#fff; font-size:.82rem; box-shadow:0 2px 8px rgba(0,0,0,.25); }
+
+  @media print {
+    nav, header svg, .lang, .pdf, .offline-panel, .offline-badge { display:none !important; }
+    header { background:none; color:var(--ink); }
+    header .inner { padding:0 0 10px; }
+    .day { display:block !important; page-break-after:always; }
+    .card, .travel { break-inside:avoid; box-shadow:none; }
+    a.map::after { content:" (" attr(data-addr) ")"; font-weight:400; }
+  }
+</style>
+</head>
+<body>
+<header>
+  <div class="lang" role="group" aria-label="Language">
+    <button data-lang="en">EN</button><button data-lang="zh">繁中</button>
+  </div>
+  <div class="inner">
+    <div class="jp">北海道 · 秋の旅</div>
+    <h1 id="title"></h1>
+    <div class="dates" id="subtitle"></div>
+    <a class="pdf" id="pdf" download></a>
+    <a class="pdf" id="maplink" href="map.html"></a>
+    <button class="pdf" id="offline" type="button" hidden></button>
+  </div>
+  <svg viewBox="0 0 400 110" preserveAspectRatio="xMidYMax slice" aria-hidden="true">
+    <defs>
+      <path id="leaf" d="M0,12 L0.6,5 L6,7 L5,3.6 L9.5,2.5 L7,0.5 L10,-3 L5.8,-2.4 L7,-7 L3.6,-4.6 L2.6,-9.5 L0.8,-6.5 L0,-11 L-0.8,-6.5 L-2.6,-9.5 L-3.6,-4.6 L-7,-7 L-5.8,-2.4 L-10,-3 L-7,0.5 L-9.5,2.5 L-5,3.6 L-6,7 L-0.6,5 Z"/>
+    </defs>
+    <circle cx="300" cy="52" r="20" fill="#f2c15a" opacity=".85"/>
+    <!-- Mt Yotei (Ezo Fuji) -->
+    <path d="M0,110 L0,92 C60,90 110,84 150,70 L196,38 C203,33 213,33 220,38 L262,68 C300,84 350,90 400,90 L400,110 Z" fill="#7a2b22"/>
+    <path d="M196,38 C203,33 213,33 220,38 L230,45 L222,44 L215,48 L207,43 L200,47 L188,44 Z" fill="#f6efe3" opacity=".9"/>
+    <!-- Autumn hills -->
+    <path d="M0,110 L0,96 C50,86 90,98 140,92 C190,86 230,100 280,95 C330,90 370,98 400,94 L400,110 Z" fill="#3d2a1c"/>
+    <path d="M0,110 L0,104 C80,98 160,106 240,102 C300,99 350,104 400,102 L400,110 Z" fill="#f6efe3"/>
+    <!-- Falling maple leaves -->
+    <use href="#leaf" transform="translate(36,34) rotate(-20) scale(1.3)" fill="#f0a23a"/>
+    <use href="#leaf" transform="translate(100,62) rotate(28) scale(.8)" fill="#ffd27a"/>
+    <use href="#leaf" transform="translate(360,28) rotate(15) scale(1.2)" fill="#ffcf6e"/>
+    <use href="#leaf" transform="translate(252,22) rotate(-35) scale(.8)" fill="#e8743a"/>
+    <use href="#leaf" transform="translate(376,70) rotate(40) scale(.7)" fill="#f0a23a"/>
+  </svg>
+</header>
+<section class="offline-panel" id="offline-panel" hidden></section>
+<nav id="tabs" role="tablist"></nav>
+<main id="days"></main>
+<footer>🍁 よい旅を · Have a great trip 🍁</footer>
+
+<script>
+// ===== TRIP DATA — edit this section to change the itinerary =====
+// (Example data: a cleaned copy of a real 12-day Hokkaido road trip. After editing, run tools/make-map.cjs.)
+// stops: { icon, time, title, notes, map }   — map = Google Maps search text
+// hotel: { name, address, map, phone, checkIn, checkOut, bookedBy, night }
+const HOTELS = {
+  toya: { name: "THE LAKE VIEW TOYA Nonokaze Resort", address: { en: "29-1 Toyako Onsen, Toyako-cho, Abuta-gun, Hokkaido", zh: "北海道虻田郡洞爺湖町洞爺湖溫泉 29-1" }, map: "THE LAKE VIEW TOYA Nonokaze Resort", phone: "+81-142-75-2600", checkIn: "15:00", checkOut: "11:00", onsen: { en: "Hot-spring baths on the top floor and open-air baths looking over Lake Toya.", zh: "頂樓溫泉浴場，另有可眺望洞爺湖的露天風呂。" } },
+  hakodate: { name: "OMO5 Hakodate by Hoshino Resorts", address: { en: "24-1 Wakamatsu-cho, Hakodate, Hokkaido", zh: "北海道函館市若松町 24-1" }, map: "OMO5 Hakodate by Hoshino Resorts", phone: "+81-50-3134-8095", checkIn: "15:00", checkOut: "11:00", onsen: { en: "Guests-only hot spring (salt spring): indoor & open-air baths, plus dry and steam saunas.", zh: "住客專用溫泉（鹽泉）：室內及露天風呂，另有乾蒸和濕蒸桑拿。" } },
+  niseko: { name: "Hilton Niseko Village", address: { en: "Higashiyama Onsen, Niseko-cho, Abuta-gun, Hokkaido", zh: "北海道虻田郡新雪谷町東山溫泉" }, map: "Hilton Niseko Village", phone: "+81-136-44-1111", checkIn: "15:00", checkOut: "11:00", onsen: { en: "Natural onsen 05:30-23:00 — indoor bath plus a big outdoor bath facing Mt Yotei.", zh: "天然溫泉 05:30–23:00：室內浴池，另有正對羊蹄山的大型露天風呂。" } },
+  otaru: { name: "Stay's OTARU", address: { en: "1-9 Aioi-cho, Otaru, Hokkaido", zh: "北海道小樽市相生町 1-9" }, map: "Stay's OTARU", phone: "+81-134-31-6111", checkIn: { en: "15:00 (last 21:00)", zh: "15:00（最遲 21:00）" }, checkOut: "10:00", onsen: { en: "No public bath — apartment-style rooms with their own bathroom (and washer/dryer).", zh: "沒有公眾浴場 — 公寓式客房，房內自設浴室（連洗衣乾衣機）。" } },
+  sapporo: { name: "La'gent Stay Shin-Sapporo", address: { en: "6-3-5 Atsubetsu-Chuo 1-jo, Atsubetsu-ku, Sapporo", zh: "札幌市厚別區厚別中央 1 條 6-3-5" }, map: "La'gent Stay Shin-Sapporo", phone: "+81-11-801-2630", checkIn: "15:00", checkOut: "11:00", onsen: { en: "Large public bath, 15:00-01:00 and 06:00-09:00.", zh: "大浴場，15:00–01:00 及 06:00–09:00 開放。" } },
+  asahikawa: { name: "OMO7 Asahikawa by Hoshino Resorts", address: { en: "9 Rokujo-dori, Asahikawa, Hokkaido", zh: "北海道旭川市六條通 9" }, map: "OMO7 Asahikawa by Hoshino Resorts", phone: "+81-50-3134-8095", checkIn: "15:00", checkOut: "11:00", onsen: { en: "Large public baths and a sauna.", zh: "大浴場及桑拿。" } },
+  furano: { name: "La Vista Furano Hills", address: { en: "5-14 Asahimachi, Furano, Hokkaido", zh: "北海道富良野市朝日町 5-14" }, map: "La Vista Furano Hills", phone: "+81-167-23-8666", checkIn: "15:00", checkOut: "11:00", onsen: { en: "Natural hot spring on the 9th floor, 15:00-10:00: indoor & open-air baths, saunas (sauna closed 01:00-05:00).", zh: "9 樓天然溫泉，15:00–10:00：室內及露天風呂、桑拿（桑拿 01:00–05:00 暫停）。" } },
+  airport: { name: "Air Terminal Hotel", address: { en: "3F New Chitose Airport terminal, Chitose, Hokkaido", zh: "北海道千歲市 新千歲機場客運大樓 3 樓" }, map: "Air Terminal Hotel New Chitose Airport", phone: "+81-123-45-6677", checkIn: "15:00", checkOut: "10:00", onsen: { en: "Hotel guests get free unlimited entry to New Chitose Airport Onsen (domestic terminal 4F), open 10:00-09:00.", zh: "住客可免費無限次使用新千歲機場溫泉（國內線航廈 4 樓），開放 10:00–09:00。" } }
+};
+const checkout = h => ({ icon: "🧳",
+  time: { en: "by " + HOTELS[h].checkOut, zh: HOTELS[h].checkOut + " 前" },
+  title: { en: "Check out — " + HOTELS[h].name, zh: "退房 — " + HOTELS[h].name } });
+
+// Japanese name shown on each day's red seal (keyed by tab)
+const SEALS = { "Day 1": "出発", "Day 2": "洞爺湖", "Day 3": "函館", "Day 4": "函館", "Day 5": "ニセコ", "Day 6": "小樽",
+  "Day 7": "札幌", "Day 8": "札幌", "Day 9": "旭川", "Day 10": "富良野", "Day 11": "千歳", "Day 12": "帰国", "Info": "情報" };
+
+const TRIP = {
+  title: { en: "Hokkaido Trip", zh: "北海道之旅" },
+  subtitle: { en: "12 days by hire car · late September to early October", zh: "十二日自駕遊 · 9 月尾至 10 月初" },
+  days: [
+    { tab: "Day 1", date: { en: "Day 1 · Saturday", zh: "第 1 日 · 星期六" }, place: { en: "Home → Bangkok", zh: "出發地 → 曼谷" }, stops: [
+      { icon: "✈️", time: "09:20", title: { en: "Home → Bangkok", zh: "出發地 → 曼谷" }, notes: { en: "Flight time about 7 hr 05 min · lands Bangkok (Suvarnabhumi) 15:25 Bangkok time", zh: "飛行時間約 7 小時 05 分 · 曼谷時間 15:25 抵達曼谷（蘇凡納布機場）" } },
+      { icon: "🛍️", time: { en: "Afternoon", zh: "下午" }, title: { en: "Robinson Lifestyle Lat Krabang (shopping centre)", zh: "Robinson Lifestyle Lat Krabang（購物商場）" }, notes: { en: "Taxi from the airport public taxi stand (Level 1), about 15 min. Aim to be back at the airport by 21:00.", zh: "喺機場 1 樓公共的士站搭的士，約 15 分鐘。最好 21:00 前返到機場。" }, map: "Robinson Lifestyle Lat Krabang" },
+      { icon: "✈️", time: "23:45", title: { en: "Bangkok → Sapporo", zh: "曼谷 → 札幌" }, notes: { en: "Overnight flight · flight time about 6 hr 45 min · lands New Chitose 08:30 Sunday, Japan time (2 hrs ahead of Bangkok)", zh: "紅眼航班 · 飛行時間約 6 小時 45 分 · 日本時間星期日 08:30 抵達新千歲（比曼谷快 2 小時）" }, map: "Suvarnabhumi Airport" }
+    ]},
+    { tab: "Day 2", date: { en: "Day 2 · Sunday", zh: "第 2 日 · 星期日" }, place: { en: "Lake Toya", zh: "洞爺湖" }, stops: [
+      { icon: "🛬", time: "08:30", title: { en: "Arrive New Chitose Airport", zh: "抵達新千歲機場" }, map: "New Chitose Airport" },
+      { icon: "🚗", time: "10:00", title: { en: "Pick up hire car — Jstyle Rental Car", zh: "取租車 — Jstyle Rental Car" }, notes: { en: "Phone +81-11-676-8082 (also on LINE). Meeting point is given with the booking.", zh: "電話 +81-11-676-8082（亦可用 LINE）。會合地點見訂單。" }, map: "New Chitose Airport" },
+      { icon: "🚗", title: { en: "Drive to Kani-O (Takeura, Shiraoi)", zh: "自駕前往 Kani-O（白老町竹浦）" }, notes: { en: "About 50 min (62 km) via the expressway", zh: "走高速約 50 分鐘（62 公里）" } },
+      { icon: "🦀", time: { en: "~11:30", zh: "約 11:30" }, title: { en: "Crab — Kani-O (live crab shop)", zh: "食蟹 — Kani-O（活蟹店）" }, notes: { en: "Hairy crab boiled fresh to order (15–20 min), eat in their dining area. About ¥2,000–3,500 per crab. Open 09:00–17:00 daily. Call ahead to cut the wait: 0144-87-4575. Big car park.", zh: "即叫即灼毛蟹（15–20 分鐘），可在店內用餐。每隻約 ¥2,000–3,500。每日 09:00–17:00 營業。可先致電 0144-87-4575 預留，慳返等候時間。設大型停車場。" }, map: "Kanio Shiraoi Takeura" },
+      { icon: "🚗", title: { en: "Drive to Restaurant Cow Bell", zh: "自駕前往 Restaurant Cow Bell" }, notes: { en: "About 15 min (back towards Shiraoi town)", zh: "約 15 分鐘（折返白老町方向）" } },
+      { icon: "🍽️", time: { en: "~12:45", zh: "約 12:45" }, title: { en: "Lunch — Restaurant Cow Bell (Shiraoi beef yakiniku & steak)", zh: "午餐 — Restaurant Cow Bell（白老牛燒肉及牛扒）" }, notes: { en: "Open 11:00–19:00 (last order 18:30). Phone 0144-83-4567", zh: "11:00–19:00 營業（最後點餐 18:30）。電話 0144-83-4567" }, map: "Restaurant Cow Bell Shiraoi" },
+      { icon: "🚗", title: { en: "Drive to Usuzan Ropeway (Mt Usu)", zh: "自駕前往有珠山纜車" }, notes: { en: "About 55 min (67 km) via the expressway · parking ¥500", zh: "走高速約 55 分鐘（67 公里）· 泊車 ¥500" } },
+      { icon: "🚡", time: { en: "~14:30", zh: "約 14:30" }, title: { en: "Usuzan Ropeway & Toyako Observation Deck", zh: "有珠山纜車及洞爺湖展望台" }, notes: { en: "Cable car every 15 min (6 min ride) up to lake & volcano views. Round trip ¥2,000 adult. Last ride down 17:15. Allow 1–1.5 hrs.", zh: "纜車每 15 分鐘一班（車程 6 分鐘），上山飽覽湖景及火山景色。成人來回 ¥2,000。尾班落山 17:15。預留 1–1.5 小時。" }, map: "Usuzan Ropeway" },
+      { icon: "🚗", title: { en: "Drive to hotel", zh: "自駕前往酒店" }, notes: { en: "About 10 min · check-in from 15:00", zh: "約 10 分鐘 · 15:00 起可入住" } },
+      { icon: "🌅", time: { en: "After check-in", zh: "入住後" }, title: { en: "Eight Views of Lake Toya (Toyako Onsen lakeside)", zh: "洞爺湖八景（洞爺湖溫泉湖畔）" }, notes: { en: "Lakeside viewpoint in Toyako Onsen town, close to the hotel. Tip: fireworks over the lake every night 20:45–21:05 in season (check the dates).", zh: "洞爺湖溫泉街的湖畔觀景點，離酒店好近。貼士：旺季每晚 20:45–21:05 有湖上煙火（請查日期）。" }, map: "Eight Views of Lake Toya Toyako Onsen" }
+    ], hotel: { ...HOTELS.toya, night: { en: "1 night", zh: "一晚" } } },
+    { tab: "Day 3", date: { en: "Day 3 · Monday", zh: "第 3 日 · 星期一" }, place: { en: "Hakodate", zh: "函館" }, stops: [
+      { icon: "🍳", time: { en: "Morning", zh: "早上" }, title: { en: "Breakfast at the hotel", zh: "酒店早餐" }, map: "THE LAKE VIEW TOYA Nonokaze Resort" },
+      checkout("toya"),
+      { icon: "🚗", title: { en: "Drive down the coast to Yakumo", zh: "沿海岸線南下八雲" }, notes: { en: "Leave Toyako by about 09:45. Route 230 then Route 5, hugging Uchiura (Funka) Bay — the kitchen at Harvester opens 11:00.", zh: "約 09:45 離開洞爨湖。走 230 號路轉 5 號路，沿內浦（噴火）灣行——Harvester 11:00 開店。" }, dir: [{ label: { en: "🌊 Coast road", zh: "🌊 海岸線" }, meta: { en: "1 hr 30 · no toll · along Funka Bay", zh: "1 小時 30 分 · 免過路費 · 沿噴火灣" }, from: "42.56582,140.82186", to: "42.2277,140.31664", via: ["42.51277,140.37521"], avoid: "tolls" }, { fast: true, label: { en: "🛣️ Expressway", zh: "🛣️ 高速公路" }, meta: { en: "1 hr 15 · ¥2,320 · saves 15 min", zh: "1 小時 15 分 · ¥2,320 · 快 15 分鐘" }, from: "42.56582,140.82186", to: "42.2277,140.31664" }] },
+      { icon: "🍕", time: { en: "~11:15 Lunch", zh: "約 11:15 午餐" }, title: { en: "Harvester Yakumo — stone-oven pizza & herb chicken", zh: "ハーベスター八雲 — 石窯焚餅、香草雞" }, notes: { en: "A big American-barn restaurant on the hill above Funka Bay, halfway down the coast road — wood-fired pizza, fried herb chicken and vegetables from the farms around it. Mains about ¥1,230. Open 11:00–18:00 on weekdays and open every day in September. Phone 0137-64-3113. It also backs onto the Yakumo PA on the expressway, so it works whichever road you take.", zh: "噴火灣上方山坡的美式納倉餐廳，就在海岸線中段——柴窯焚餅、炸香草雞，配周圍農場的蔬菜。主菜約 ¥1,230。平日 11:00–18:00，9 月無休。電話 0137-64-3113。它同時緊鄰高速公路八雲 PA，走哪條路都去到。" }, map: "ハーベスター八雲 八雲町浜松365" },
+      { icon: "🚗", title: { en: "Drive on to Onuma", zh: "繼續前往大沼" }, notes: { en: "Route 5 on along the bay — Mt Komagatake ahead as you near Mori.", zh: "繼續沿 5 號路行——接近森町時可見駒ヶ岳。" }, dir: [{ label: { en: "🌊 Coast road", zh: "🌊 海岸線" }, meta: { en: "55 min · no toll · Mt Komagatake ahead", zh: "55 分鐘 · 免過路費 · 遠眺駒ヶ岳" }, from: "42.2277,140.31664", to: "41.98085,140.67008", via: ["42.109,140.57339"], avoid: "tolls" }, { fast: true, label: { en: "🛣️ Expressway", zh: "🛣️ 高速公路" }, meta: { en: "42 min · ¥1,410 · saves 13 min", zh: "42 分鐘 · ¥1,410 · 快 13 分鐘" }, from: "42.2277,140.31664", to: "41.98085,140.67008" }] },
+      { icon: "☕", time: { en: "~13:15", zh: "約 13:15" }, title: { en: "Charles de Mills (lakeside café)", zh: "Charles de Mills（湖畔咖啡店）" }, notes: { en: "Coffee & cake in the woods by Lake Onuma. Open about 10:30–18:30, closed Fridays. Phone 0138-67-3811", zh: "大沼湖畔樹林中的咖啡店，歎咖啡食蛋糕。約 10:30–18:30 營業，逢星期五休息。電話 0138-67-3811" }, map: "シャルルドミル 七飯町大沼町106-1" },
+      { icon: "🚗", title: { en: "Drive to Onuma Park", zh: "自駕前往大沼公園" }, notes: { en: "About 2 min", zh: "約 2 分鐘" } },
+      { icon: "🌲", time: { en: "~14:00–15:15", zh: "約 14:00–15:15" }, title: { en: "Onuma Quasi-National Park", zh: "大沼國定公園" }, notes: { en: "Lakes and islands with walking trails and bridges, views of Mt Komagatake. Sightseeing boat ~30 min (about ¥1,100–1,500). Free parking near Onuma-Koen Station.", zh: "湖泊小島之間有步道同小橋相連，可遠眺駒岳。遊覽船約 30 分鐘（約 ¥1,100–1,500）。大沼公園站附近有免費泊車。" }, map: "Onuma Quasi-National Park" },
+      { icon: "🍷", time: { en: "Optional", zh: "可選" }, title: { en: "Hakodate Wine — Budokan main store (Nanae)", zh: "函館葡萄酒 — 葡萄館本店（七飯町）" }, notes: { en: "On the way to Hakodate, about 20 min from Onuma. Free wine tasting (non-drivers!) and wine soft-serve ice cream. Open 10:00–17:00, closed Wednesdays. Phone 0138-65-8170. Free parking.", zh: "順路去函館，由大沼約 20 分鐘。免費試酒（揸車嘅唔飲得！），仲有紅酒軟雪糕。10:00–17:00 營業，逢星期三休息。電話 0138-65-8170。免費泊車。" }, map: "HAKODATE WINE Budokan Nanae" },
+      { icon: "🚗", title: { en: "Drive to Hakodate", zh: "自駕前往函館" }, notes: { en: "About 30 min from the winery (40 min direct from Onuma) · hotel check-in from 15:00", zh: "由酒莊約 30 分鐘（由大沼直去約 40 分鐘）· 酒店 15:00 起可入住" } },
+      { icon: "🏯", time: { en: "Early evening", zh: "傍晚" }, title: { en: "Goryokaku Fort", zh: "五稜郭" }, notes: { en: "Star-shaped fort & park, about 10 min drive from the hotel (paid parking nearby). Park grounds are free and open anytime. Goryokaku Tower (views of the star shape) ¥1,200, open until 18:00. Magistrate's Office ¥500, last entry 17:45 — arrive by ~16:30 to fit both.", zh: "星形城郭公園，由酒店約 10 分鐘車程（附近有收費泊車）。公園範圍免費，全日開放。五稜郭塔（睇星形全景）¥1,200，開放至 18:00。奉行所 ¥500，最後入場 17:45 — 約 16:30 前到就兩樣都睇到。" }, map: "Goryokaku Fort" },
+      { icon: "🍣", time: { en: "Dinner", zh: "晚餐" }, title: { en: "Kaiten Sushi Hakodate Shunka (conveyor sushi)", zh: "迴轉壽司 函館旬花（迴轉壽司）" }, notes: { en: "Right next to the fort, opposite Goryokaku Tower. Fish bought fresh each morning at Hakodate fish market. About ¥3,000–5,000 pp. Open 11:00–21:00 daily (last order 20:30). No bookings — first come, first served. Phone 0138-83-2301", zh: "就喺五稜郭隔籬，五稜郭塔對面。每朝喺函館魚市場入貨。每位約 ¥3,000–5,000。每日 11:00–21:00 營業（最後點餐 20:30）。不設訂座，先到先得。電話 0138-83-2301" }, map: "Kaiten Sushi Hakodate Shunka Goryokaku" }
+    ], hotel: { ...HOTELS.hakodate, night: { en: "Night 1 of 2", zh: "第 1 晚（共 2 晚）" } } },
+    { tab: "Day 4", date: { en: "Day 4 · Tuesday", zh: "第 4 日 · 星期二" }, place: { en: "Hakodate", zh: "函館" }, stops: [
+      { icon: "🍣", time: { en: "From 08:30", zh: "08:30 起" }, title: { en: "Breakfast — Uni Murakami Hakodate main store (sea urchin bowls)", zh: "早餐 — 海膽村上 函館本店（海膽丼）" }, notes: { en: "About 10 min walk from the hotel, next to the Hakodate Morning Market. Opens 08:30, closed Wednesdays. Can get busy — go early. Phone 0138-26-8821", zh: "由酒店步行約 10 分鐘，就喺函館朝市隔籬。08:30 開門，逢星期三休息。可能好多人，早啲去。電話 0138-26-8821" }, map: "Uni Murakami Hakodate main store" },
+      { icon: "🧱", time: { en: "Morning", zh: "上午" }, title: { en: "Kanemori Red Brick Warehouses (Bay Area)", zh: "金森紅磚倉庫（灣區）" }, notes: { en: "Historic brick warehouses by the harbour, now shops, cafés & a beer hall. About 15 min walk from breakfast. Easy to fill a couple of hours — shops, the harbour front and a coffee stop. Shops open 09:30–19:00 daily. Paid parking on site. Phone 0138-27-5530", zh: "海港邊嘅歷史紅磚倉庫，而家係商店、咖啡店同啤酒屋。由食早餐嗰度步行約 15 分鐘。可以喺度慢慢行兩個鐘 — 行吓商店、海傍，再歎返杯咖啡。商店每日 09:30–19:00。場內設收費泊車。電話 0138-27-5530" }, map: "Kanemori Red Brick Warehouse Hakodate" },
+      { icon: "🍜", time: { en: "~12:50 Lunch", zh: "約 12:50 午餐" }, title: { en: "Ajisai MAIN store (Goryokaku) — Hakodate shio ramen", zh: "麵廚房 味彩 本店（五稜郭）— 函館鹽味拉麵" }, notes: { en: "The original Ajisai, founded 1932 — the same famous 味彩塩拉麺 (clear salt broth, about ¥900) as the Bay Area branch — this is the flagship. Its own free car park (about 8 spaces, 3 out front + 5 in a second lot). 29-22 Goryokaku-cho, near the fort you saw last night. Open 11:00–21:00 (last order 20:25), closed 2nd & 4th Wednesdays — Tuesday is fine. Phone 0138-51-8373", zh: "味彩嘅創始本店，1932 年創業 — 同灣區嗰間一樣係招牌「味彩塩拉麵」（清鹽湯底，約 ¥900），呢間係總店。設自家免費停車場（約 8 個位，門口 3 個、第二停車場 5 個）。五稜郭町 29-22，就喺琴晚去過嘅五稜郭附近。11:00–21:00 營業（最後點餐 20:25），每月第 2 及第 4 個星期三休息 — 星期二無問題。電話 0138-51-8373" }, map: "函館麺厨房あじさい 本店 五稜郭町29-22" },
+      { icon: "🚗", title: { en: "Drive to AEON Kamiiso", zh: "自駕前往 AEON 上磯店" }, notes: { en: "About 15 min (5.6 km) from Goryokaku, south-west to Hokuto.", zh: "由五稜郭向西南往北斗市，約 15 分鐘（5.6 公里）。" } },
+      { icon: "🛒", time: { en: "Afternoon", zh: "下午" }, title: { en: "AEON Kamiiso (shopping centre)", zh: "AEON 上磯店（購物商場）" }, notes: { en: "Big AEON supermarket + specialty shops. Large car park. Shops 09:00–21:00, food floor 08:00–22:00. Phone 0138-49-8188", zh: "大型 AEON 超市連專門店。大型停車場。商店 09:00–21:00，食品樓層 08:00–22:00。電話 0138-49-8188" }, map: "AEON Kamiiso" },
+      { icon: "🚗", title: { en: "Drive back & park at the hotel", zh: "揸返去酒店泊車" }, notes: { en: "About 15 min. Cars can't drive up Mt Hakodate in the evening and the ropeway car park is small — leave the car at the hotel.", zh: "約 15 分鐘。夜晚唔准揸車上函館山，纜車站停車場又細 — 架車留喺酒店好過。" } },
+      { icon: "🚕", title: { en: "Taxi to Mt Hakodate Ropeway", zh: "搭的士去函館山纜車站" }, notes: { en: "About 10 min by taxi (~¥1,000). Or tram from Hakodate-Ekimae to Jujigai, then 10 min walk uphill.", zh: "的士約 10 分鐘（約 ¥1,000）。或者搭電車由函館駅前去十字街，再行 10 分鐘上斜。" } },
+      { icon: "🌃", time: { en: "~17:00", zh: "約 17:00" }, title: { en: "Mt Hakodate night view (Ropeway)", zh: "函館山夜景（纜車）" }, notes: { en: "Cable car every 15 min, 3 min ride. Round trip ¥1,800 adult. Sunset about 17:30 — go up before dark for dusk + night views. Last ride up 21:30, down 22:00. Very busy right after sunset. Bring a jacket, it's windy on top.", zh: "纜車每 15 分鐘一班，車程 3 分鐘。成人來回 ¥1,800。日落約 17:30 — 早啲上去，黃昏同夜景都睇到。尾班上山 21:30，落山 22:00。日落後最逼。山頂大風，記得帶件外套。" }, map: "函館山ロープウェイ 山麓駅 函館市元町19-7" },
+      { icon: "🚕", title: { en: "Taxi back down to Otemachi", zh: "搭的士落返大手町" }, notes: { en: "About 10 min. The car is parked at the hotel for the night, so everyone can drink from here on — including the driver.", zh: "約 10 分鐘。架車已經泊咗喺酒店過夜，所以由呢刻開始人人都飲得 — 包括司機。" } },
+      { icon: "🍺", time: { en: "~19:00", zh: "約 19:00" }, title: { en: "Hakodate Beer (craft brewery restaurant) — for the hot beer", zh: "函館啤酒（精釀啤酒餐廳）— 試熱啤酒" }, notes: { en: "Best in the evening, once the car is parked for the night. Own beers brewed on site since 1996, plus squid & seafood, so this can be dinner instead of the options below if you'd rather stay put. About 10 min walk from the hotel, and about 10 min from the Daimon dinner options. Open 11:00–22:00 (last order 21:30), closed Wednesdays. Worth a quick call to check the hot beer is actually on: 050-5493-1932", zh: "架車泊低咗過夜之後，夜晚嚟最啱。1996 年起自家釀啤酒，亦有魷魚同海鮮，所以唔想再行嘅話，喺度食埋晚飯都得。由酒店步行約 10 分鐘，去大門幾間晚餐選擇亦係約 10 分鐘。11:00–22:00 營業（最後點餐 21:30），逢星期三休息。建議打去問吓熱啤酒係咪真係有供應：050-5493-1932" }, map: "はこだてビール 函館市大手町" },
+      { icon: "🚶", title: { en: "Walk to dinner in Daimon", zh: "步行去大門食晚飯" }, notes: { en: "About 10 min — or stay at Hakodate Beer and eat there.", zh: "約 10 分鐘 — 或者就留喺函館啤酒度食。" } },
+      { icon: "🦑", time: { en: "Dinner option 1", zh: "晚餐選擇 1" }, title: { en: "Hakodate Fusaya — Daimon store (izakaya)", zh: "函館 ふさや 大門店（居酒屋）" }, notes: { en: "Famous for fresh live squid and seafood. Open 16:00–01:00 daily. Popular, booking recommended. Phone 0138-26-0064", zh: "以活魷魚同海鮮聞名。每日 16:00–01:00 營業。好多人幫襯，建議訂座。電話 0138-26-0064" }, map: "はこだて ふさや 大門店" },
+      { icon: "🐑", time: { en: "Dinner option 2", zh: "晚餐選擇 2" }, title: { en: "Daimon Hitsujitei — main store (lamb jingisukan)", zh: "大門羊亭 本店（成吉思汗烤羊）" }, notes: { en: "Lamb specialist — staff grill the lamb for you. Sets from about ¥3,410 per person. 8-19 Matsukaze-cho. Open 17:00–22:00 (last order 21:00), irregular days off. Phone 0138-27-4129", zh: "羊肉專門店 — 有店員幫你燒。套餐每位約 ¥3,410 起。松風町 8-19。17:00–22:00 營業（最後點餐 21:00），不定休。電話 0138-27-4129" }, map: "大門ひつじ亭 本店 函館" },
+      { icon: "🐑", time: { en: "Dinner option 3", zh: "晚餐選擇 3" }, title: { en: "Yakiniku Monogatari Ushiwaka — Daimon (lamb BBQ & yakiniku)", zh: "燒肉物語 牛若 大門店（烤羊及燒肉）" }, notes: { en: "Jingisukan (Hokkaido grilled lamb) incl. all-you-can-eat, plus beef tongue & wagyu. Next door to Fusaya. Open 16:00–23:30. Phone 0138-76-2335", zh: "成吉思汗烤羊（北海道式），有放題，亦有牛脷同和牛。就喺 ふさや 隔籬。16:00–23:30 營業。電話 0138-76-2335" }, map: "Yakiniku Monogatari Ushiwaka Hakodate Daimon Branch" }
+    ], hotel: { ...HOTELS.hakodate, night: { en: "Night 2 of 2", zh: "第 2 晚（共 2 晚）" } } },
+    { tab: "Day 5", date: { en: "Day 5 · Wednesday", zh: "第 5 日 · 星期三" }, place: { en: "Niseko", zh: "新雪谷（二世古）" }, stops: [
+      { icon: "🦀", time: { en: "Breakfast option 1 · early", zh: "早餐選擇 1 · 早市" }, title: { en: "Hakodate Morning Market", zh: "函館朝市" }, notes: { en: "About 5 min walk from the hotel. Seafood rice bowls (kaisendon) in Donburi Yokocho alley, crab & fruit stalls, and live squid fishing at Ekini Market (they prepare it as sashimi). Opens about 06:00, most shops close by 14:00. Some shops are closed Wednesdays — plenty of others open. Go about 06:30–07:30 to be away by 08:00.", zh: "由酒店步行約 5 分鐘。丼橫丁有海鮮丼，仲有蟹同生果攤檔，駅二市場可以即場釣魷魚（即刻幫你切刺身）。約 06:00 開市，大部分店 14:00 前收檔。部分店逢星期三休息，但仲有好多開。約 06:30–07:30 去，08:00 就可以出發。" }, map: "Hakodate Morning Market" },
+      { icon: "☕", time: { en: "Breakfast option 2 · from 07:30", zh: "早餐選擇 2 · 07:30 起" }, title: { en: "Breakfast & coffee — Tully's Coffee, JR Hakodate Station (2nd floor)", zh: "早餐連咖啡 — Tully's Coffee JR 函館站（2 樓）" }, notes: { en: "All in one and right on the way back to the hotel: morning sets (hot dog or sandwich + coffee, about ¥530–590), pastries, and takeaway coffee for the drive. Opens 07:30. Phone 0138-24-3855", zh: "一次過搞掂，又順路返酒店：早餐套餐（熱狗或三文治＋咖啡，約 ¥530–590）、麵包，仲可以買杯咖啡上車飲。07:30 開門。電話 0138-24-3855" }, map: "Tully's Coffee Hakodate Station" },
+      { ...checkout("hakodate"), time: { en: "~07:45 — on the road by 08:00", zh: "約 07:45,08:00 出發" } },
+      { icon: "🚗", title: { en: "Drive to Niseko", zh: "自駕前往新雪谷" }, notes: { en: "About 2 hr 30 min (169 km) on the expressway — still the longest drive of the trip; tolls are on the ETC card. Leave Hakodate by 08:00 and you are in Niseko about 10:30, with time for lunch before an afternoon round. (Toll-free on Route 5 is about 3 hrs.) Take a break on the way.", zh: "走高速約 2 小時 30 分（169 公里）— 仍然係全程最長嘅一程車；過路費用 ETC 卡。08:00 前離開函館，約 10:30 就到新雪谷，食完午餐再打波都夠時間。（行免費嘅國道 5 號約 3 小時。）中途抖吓。" } },
+      { icon: "🍝", time: { en: "~11:05 Lunch", zh: "約 11:05 午餐" }, title: { en: "PRATIVO — farm restaurant at Milk Kobo", zh: "PRATIVO — 牛奶工房旁嘅農場餐廳" }, notes: { en: "Quick lunch before golf — Italian-style, using the farm's milk & local Niseko vegetables. Lunch 11:00–16:00 (last order 15:00). No bookings — walk in. About 5 min from the golf course. Phone 0136-55-8852. (The farm's pizza shop Mandriano is closed Wednesdays.)", zh: "打高爾夫前快快哋食個午餐 — 意式菜，用農場鮮奶同新雪谷本地菜。午市 11:00–16:00（最後點餐 15:00）。不設訂座，直接入座。距離球場約 5 分鐘。電話 0136-55-8852。（農場嘅薄餅店 Mandriano 逢星期三休息。）" }, map: "PRATIVO Niseko Takahashi Farm" },
+      { icon: "🍦", time: { en: "~11:45", zh: "約 11:45" }, title: { en: "Niseko Milk Kobo (Takahashi Dairy Farm)", zh: "新雪谷牛奶工房（高橋牧場）" }, notes: { en: "Same site as PRATIVO — famous soft-serve, cream puffs & yogurt from the farm's own milk, with Mt Yotei views. Café (Niseko Cacao Crown) for coffee/hot chocolate. Open 09:30–18:00. Grab something quick, then head to the course (or come back in the afternoon).", zh: "同 PRATIVO 同一個場地 — 用自家鮮奶整嘅軟雪糕、泡芙同乳酪好出名，仲望到羊蹄山。café（Niseko Cacao Crown）有咖啡同熱朱古力。09:30–18:00 營業。快手食啲嘢就去球場（下午都可以再返嚟）。" }, map: "Niseko Milk Kobo Takahashi Farm" },
+      { icon: "🚗", title: { en: "Drive to the golf course", zh: "自駕前往高爾夫球場" }, notes: { en: "About 3 min", zh: "約 3 分鐘" } },
+      { icon: "⛳", time: { en: "Optional · afternoon", zh: "可選 · 下午" }, title: { en: "Golf — Niseko Village Golf Course", zh: "高爾夫 — Niseko Village 高爾夫球場" }, notes: { en: "Book a tee time ahead; club hire available. Course is next to the Hilton. Sunset is about 17:30, so an early-afternoon tee is a race to finish 18 — take a cart and keep moving. Clubhouse +81-136-44-1111.", zh: "要預先訂開球時間，可以租球桿。球場就喺 Hilton 隔籬。日落約 17:30，下午開球要趕住打完 18 洞 — 搭球車，唔好慢。會所電話 +81-136-44-1111。" }, map: "Niseko Village Golf Course" },
+      { icon: "🔑", time: { en: "From 15:00", zh: "15:00 起" }, title: { en: "Check in — Hilton Niseko Village", zh: "入住 — Hilton Niseko Village" }, notes: { en: "Natural onsen — indoor bath plus a big outdoor bath looking over a carp pond to Mt Yotei (open 05:30–23:00, towels & toiletries provided). Good for a soak after golf.", zh: "天然溫泉 — 室內浴池加一個大露天風呂，望住鯉魚池同羊蹄山（05:30–23:00 開放，備有毛巾同梳洗用品）。打完波去浸吓最好。" }, map: "Hilton Niseko Village" },
+      { icon: "🍽️", time: { en: "Dinner", zh: "晚餐" }, title: { en: "Dinner at the hotel — Hilton Niseko Village", zh: "酒店晚餐 — Hilton Niseko Village" }, map: "Hilton Niseko Village" }
+    ], hotel: { ...HOTELS.niseko, night: { en: "1 night", zh: "一晚" } } },
+    { tab: "Day 6", date: { en: "Day 6 · Thursday", zh: "第 6 日 · 星期四" }, place: { en: "Otaru", zh: "小樽" }, stops: [
+      { icon: "🍳", time: { en: "Morning", zh: "早上" }, title: { en: "Breakfast at the hotel — Hilton Niseko Village", zh: "酒店早餐 — Hilton Niseko Village" }, map: "Hilton Niseko Village" },
+      { ...checkout("niseko"), time: { en: "~09:00 (10:00 latest)", zh: "約 09:00(最遲 10:00)" } },
+      { icon: "🍂", time: { en: "Optional · ~09:45–10:30", zh: "可選 · 約 09:45–10:30" }, title: { en: "Shinsen-numa pond (via the Niseko Panorama Line)", zh: "神仙沼（經新雪谷全景公路）" }, notes: { en: "On the way to Yoichi if you take the Panorama Line — and it only adds about 20 min (29 min from the Hilton, then 57 min on to Yoichi, against 1 hr 7 min going direct). Easy wooden boardwalk through forest & marshland, about 20 min each way to a mountain pond; late Sept–early Oct is peak autumn colours. Free parking; rest house with toilets & snacks. Winding mountain road. Leave the pond by 10:30 if you have a 13:30 lunch booking in Otaru.", zh: "行全景公路去余市順路 — 其實只係多花約 20 分鐘（由 Hilton 29 分鐘，再 57 分鐘去余市；直接去係 1 小時 7 分）。平坦木棧道穿過樹林同濕地，單程約 20 分鐘就到山中沼澤；9 月尾至 10 月初正係紅葉最靚。免費泊車；休息所有洗手間同小食。山路彎多。10:30 前離開神仙沼（若 13:30 喺小樽有午餐訂座）。" }, map: "Shinsen-numa Pond" },
+      { icon: "🚗", title: { en: "Drive to Nikka Whisky Yoichi Distillery", zh: "自駕前往 Nikka 威士忌余市蒸餾所" }, notes: { en: "About 1 hr 5 min direct (57 km), or about 55 min from Shinsen-numa", zh: "直去約 1 小時 5 分（57 公里），由神仙沼去約 55 分鐘" } },
+      { icon: "🥃", time: { en: "~10:15 direct / ~11:25 via the pond · allow ~1 hr", zh: "直去約 10:15 / 經神仙沼約 11:25 · 預留約 1 小時" }, title: { en: "Nikka Whisky Yoichi Distillery", zh: "Nikka 威士忌 余市蒸餾所" }, notes: { en: "Historic stone distillery — walk in, no booking. Free Nikka Museum & shop (09:15–16:15). Paid Tasting Bar inside the museum (last order 16:00): distillery-only whiskies, pay per glass. Driver: no alcohol at all — zero tolerance for drink-driving in Japan. Free parking. Phone 0135-23-3131", zh: "歷史悠久嘅石造蒸餾所 — 自由入場，唔使預約。Nikka 博物館同商店免費（09:15–16:15）。館內有收費試飲吧（最後點單 16:00）：限定威士忌，逐杯計。揸車嗰位：滴酒不沾 — 日本酒後駕駛零容忍。免費泊車。電話 0135-23-3131" }, map: "Nikka Whisky Yoichi Distillery" },
+      { icon: "🚗", title: { en: "Drive to Otaru — the coast road", zh: "自駕前往小樽 — 走海岸線" }, notes: { en: "About 32 min (21 km) on Route 5 past Shioya, along the Sea of Japan — no slower than the expressway on current traffic, and no toll (saves ¥920). Plenty of time before lunch. Park at a coin car park nearby (the restaurant has no parking).", zh: "走 5 號路經鹽谷，沿日本海，約 32 分鐘（21 公里）——以現時路況計並不比高速慢，而且免過路費（省 ¥920）。距離午餐時間充裕。泊附近嘅收費停車場（餐廳無泊車位）。" }, dir: [{ label: { en: "🌊 Coast road", zh: "🌊 海岸線" }, meta: { en: "29 min · no toll · Sea of Japan", zh: "29 分鐘 · 免過路費 · 沿日本海" }, from: "43.18746,140.79117", to: "43.19495,141.00131", avoid: "tolls" }, { fast: true, label: { en: "🛣️ Expressway", zh: "🛣️ 高速公路" }, meta: { en: "29 min · ¥920 · no time saved at all", zh: "29 分鐘 · ¥920 · 完全快不到" }, from: "43.18746,140.79117", to: "43.19495,141.00131" }] },
+      { icon: "🍣", time: { en: "~13:30 Lunch", zh: "約 13:30 午餐" }, title: { en: "Kukizen — sushi (Michelin-recommended)", zh: "群来膳 — 壽司（米芝蓮推介）" }, notes: { en: "Booking recommended. Chef's-choice lunch, about ¥6,600+ for 12 pieces. Closed Mon, Tue & 3rd Wed. 1-10-7 Ironai, near Otaru Canal. Phone 0134-27-2888", zh: "建議訂座。廚師發辦午市，12 件約 ¥6,600 起。逢星期一、二及每月第三個星期三休息。色內 1-10-7，近小樽運河。電話 0134-27-2888" }, map: "群来膳 小樽市色内1-10-7" },
+      { icon: "🚗", title: { en: "Drive to the hotel", zh: "自駕前往酒店" }, notes: { en: "About 5 min · free parking at the hotel", zh: "約 5 分鐘 · 酒店免費泊車" } },
+      { icon: "🔑", time: "15:00", title: { en: "Check in — Stay's OTARU", zh: "入住 — Stay's OTARU" }, notes: { en: "Check-in from 15:00 (last 21:00). Luggage storage available if you arrive early.", zh: "15:00 起可入住（最遲 21:00）。早到可以寄存行李。" }, map: "Stay's OTARU" },
+      { icon: "🧺", time: { en: "Afternoon", zh: "下午" }, title: { en: "Laundry at the hotel", zh: "喺酒店洗衫" }, notes: { en: "Rooms have a washing machine/dryer, plus a free guest laundry corner in the building. Tip: start a load, then pop out to the Music Box Museum while it runs.", zh: "房內有洗衣乾衣機，大廈內亦有免費自助洗衣角。貼士：開機洗住先，趁洗衫嗰陣去音樂盒堂行吓。" } },
+      { icon: "🎶", time: { en: "~15:30–17:00", zh: "約 15:30–17:00" }, title: { en: "Otaru Music Box Museum (main hall) & Sakaimachi Street", zh: "小樽音樂盒堂 本館 及 堺町通" }, notes: { en: "Grand 1912 stone building filled with thousands of music boxes — free entry, great for souvenirs. The steam clock out front plays every 15 min. About 5 min walk from the hotel at Märchen Crossing, at the end of Sakaimachi's old shopping street (glass shops, LeTAO sweets). Open 09:00–18:00 daily. Phone 0134-22-1108", zh: "1912 年建成嘅宏偉石造建築，入面有幾千個音樂盒 — 免費入場，買手信一流。門口嘅蒸汽時鐘每 15 分鐘響一次。由酒店步行約 5 分鐘，喺童話十字路口，亦係堺町老街嘅盡頭（玻璃店、LeTAO 甜品）。每日 09:00–18:00。電話 0134-22-1108" }, map: "小樽オルゴール堂 本館" },
+      { icon: "🍗", time: { en: "Dinner", zh: "晚餐" }, title: { en: "Wakadori Jidai Naruto — main store (Otaru's famous fried half chicken)", zh: "若雞時代 なると 本店（小樽名物炸半隻雞）" }, notes: { en: "Order the 'wakadori hanmi-age' — a whole half chicken, seasoned & deep-fried, an Otaru favourite since 1965. Near Otaru Station, about 20 min walk or 5 min taxi from the hotel. Takeaway available. Open 11:00–21:00 (last order 20:30), irregular days off. Phone 0134-32-3280", zh: "要叫「若雞半身揚」— 半隻雞調味後炸香，1965 年起嘅小樽名物。近小樽站，由酒店步行約 20 分鐘或搭的士 5 分鐘。可外賣。11:00–21:00 營業（最後點餐 20:30），不定休。電話 0134-32-3280" }, map: "若鶏時代 なると 本店 小樽" },
+      { icon: "🍸", time: { en: "After dinner", zh: "晚餐後" }, title: { en: "BAR Duomo Rosso — rooftop bar, Hotel Nord Otaru (7F)", zh: "BAR Duomo Rosso — Hotel Nord 小樽天台酒吧（7 樓）" }, notes: { en: "Domed starry ceiling and glass walls looking over Otaru Canal & the harbour at night. About 10 min walk from dinner. Open 19:00–23:30 (drinks last order 23:00). Check it's open that night.", zh: "圓頂星空天花配落地玻璃，望住小樽運河同海港夜景。由食晚飯嗰度步行約 10 分鐘。19:00–23:30 營業（最後點飲品 23:00）。去之前確認下當晚有無開。" }, map: "BAR Duomo Rosso Hotel Nord Otaru" },
+      { icon: "🏮", time: { en: "Night", zh: "夜晚" }, title: { en: "Evening walk along Otaru Canal", zh: "夜遊小樽運河" }, notes: { en: "Gas lamps and old stone warehouses lit up at night. Right below the bar — then walk back to the hotel, about 10–15 min.", zh: "煤氣燈同石造舊倉庫夜晚都會着燈。就喺酒吧樓下 — 之後散步返酒店，約 10–15 分鐘。" }, map: "Otaru Canal" }
+    ], hotel: { ...HOTELS.otaru, night: { en: "1 night", zh: "一晚" } } },
+    { tab: "Day 7", date: { en: "Day 7 · Friday", zh: "第 7 日 · 星期五" }, place: { en: "Sapporo", zh: "札幌" }, stops: [
+      { ...checkout("otaru"), time: { en: "~08:00 (by 10:00)", zh: "約 08:00(10:00 前)" } },
+      { icon: "🚗", title: { en: "Drive to Otaru Station", zh: "自駕前往小樽站" }, notes: { en: "About 7 min · park at a coin car park near the station / Sankaku Market", zh: "約 7 分鐘 · 泊車站／三角市場附近嘅收費停車場" } },
+      { icon: "🐟", time: { en: "Breakfast option 1 (from 07:00)", zh: "早餐選擇 1（07:00 起）" }, title: { en: "Aji-dokoro Takeda — Sankaku Market (seafood bowls)", zh: "味處竹田 — 三角市場（海鮮丼）" }, notes: { en: "Run by Takeda fish shop (50+ years) inside Sankaku Market, right next to Otaru Station. Seafood rice bowls, crab & grilled fish. Open 07:00–16:00.", zh: "由經營超過 50 年嘅竹田魚店主理，喺三角市場內，就喺小樽站隔籬。有海鮮丼、蟹同烤魚。07:00–16:00 營業。" }, map: "味処たけだ 小樽三角市場" },
+      { icon: "🐟", time: { en: "Breakfast option 2 (from 08:00)", zh: "早餐選擇 2（08:00 起）" }, title: { en: "Takinami Shokudo — Sankaku Market (seafood bowls)", zh: "瀧波食堂 — 三角市場（海鮮丼）" }, notes: { en: "Old-school seafood bowl restaurant since 1945, also inside Sankaku Market. Open 08:00–17:00.", zh: "1945 年創業嘅老牌海鮮丼店，同樣喺三角市場內。08:00–17:00 營業。" }, map: "滝波食堂 小樽三角市場" },
+      { icon: "☕", time: "10:00", title: { en: "Coffee — B3 COFFEE OTARU (flat whites!)", zh: "咖啡 — B3 COFFEE OTARU（有 flat white！）" }, notes: { en: "Run by an Australian owner & his Japanese family — proper flat whites on a La Marzocco with Allpress beans, plus toast. 1-7-6 Hanazono, about 10 min walk from Otaru Station. Open 10:00–19:30, closed Thursdays. Phone 0134-35-8490", zh: "澳洲老闆同佢嘅日本家人經營 — 用 La Marzocco 咖啡機配 Allpress 咖啡豆，沖正宗 flat white，仲有多士。花園 1-7-6，由小樽站步行約 10 分鐘。10:00–19:30 營業，逢星期四休息。電話 0134-35-8490" }, map: "B3 COFFEE OTARU" },
+      { icon: "🚗", title: { en: "Drive to central Sapporo", zh: "自駕前往札幌市中心" }, notes: { en: "About 50 min (40 km) via expressway · park at a coin car park near the restaurant", zh: "走高速約 50 分鐘（40 公里）· 泊餐廳附近嘅收費停車場" } },
+      { icon: "🥩", time: { en: "Lunch option 1", zh: "午餐選擇 1" }, title: { en: "Gyukatsu Fushimi (beef cutlet, grill-it-yourself)", zh: "牛かつ専門 ふしみ（炸牛扒，自己燒）" }, notes: { en: "Lightly fried beef cutlet you finish on your own hot iron plate — with soy, rock salt or wasabi. Hokkaido beef cutlet sets ¥1,380–2,580 (barley rice, grated yam, miso soup) or Hokkaido kuroge wagyu steak bowl ¥1,580–2,880. B1F, Minami 1 Nishi 2 — 2 min from Odori Station. Lunch 11:30–15:00, open daily. Phone 011-205-0621", zh: "輕炸牛扒，自己喺石板上燒到啱熟 — 配豉油、岩鹽或芥末。北海道炸牛扒套餐 ¥1,380–2,580（麥飯、山藥蓉、味噌湯），或北海道黑毛和牛扒丼 ¥1,580–2,880。南 1 條西 2 地庫 — 距離大通站 2 分鐘。午市 11:30–15:00，每日營業。電話 011-205-0621" }, map: "牛かつ専門 ふしみ 札幌" },
+      { icon: "🍲", time: { en: "Lunch option 2", zh: "午餐選擇 2" }, title: { en: "Shabu-shabu Lettuce, Sapporo Ekimae (one pot each)", zh: "涮涮鍋 れたす 札幌站前店（一人一鍋）" }, notes: { en: "Individual shabu-shabu pots with farm-fresh Hokkaido vegetables and quality meat, including lamb shabu. Lunch from about ¥1,000. Near Sapporo Station / Odori. Lunch 11:30–14:30 (last order 14:00).", zh: "一人一個涮涮鍋，配北海道新鮮農場蔬菜同靚肉，亦有羊肉涮涮鍋。午市約 ¥1,000 起。近札幌站／大通。午市 11:30–14:30（最後點餐 14:00）。" }, map: "しゃぶしゃぶ れたす 札幌駅前店" },
+      { icon: "🐟", time: { en: "Lunch option 3", zh: "午餐選擇 3" }, title: { en: "Ohiso 2nd store — Nijo Market seafood bowls", zh: "大磯 2 號店 — 二条市場海鮮丼" }, notes: { en: "Sapporo's central seafood market. 30+ kinds of kaisendon, sea urchin bowls, grilled & simmered fish. Minami 3-jo Higashi 2 (in Nijo Market) — about 10 min from the Beer Museum. Open 08:00–15:00, closed Tuesdays. Coin parking nearby. Phone 011-205-8989", zh: "札幌市中心嘅海鮮市場。有 30 幾款海鮮丼、海膽丼，仲有烤魚同煮魚。南 3 条東 2（二条市場內）— 距離啤酒博物館約 10 分鐘。08:00–15:00 營業，逢星期二休息。附近有收費泊車。電話 011-205-8989" }, map: "札幌二条市場 大磯 2号店" },
+      { icon: "🚗", title: { en: "Drive to Sapporo Beer Museum", zh: "自駕前往札幌啤酒博物館" }, notes: { en: "About 10 min · free parking (get your ticket stamped inside)", zh: "約 10 分鐘 · 免費泊車（入到去記得蓋印）" } },
+      { icon: "🍺", time: { en: "~13:30", zh: "約 13:30" }, title: { en: "Sapporo Beer Museum", zh: "札幌啤酒博物館" }, notes: { en: "Historic red-brick 1890 brewery building. Museum is free; paid Premium Tour with tasting (about ¥1,000). Open 11:00–18:00, last entry 17:30. Driver: no alcohol.", zh: "1890 年嘅紅磚啤酒廠古蹟。博物館免費；另有收費 Premium 導賞連試飲（約 ¥1,000）。11:00–18:00 開放，最後入場 17:30。揸車嗰位唔飲得。" }, map: "Sapporo Beer Museum" },
+      { icon: "🚗", title: { en: "Drive to the hotel", zh: "自駕前往酒店" }, notes: { en: "About 30 min", zh: "約 30 分鐘" } },
+      { icon: "🔑", time: { en: "~15:00", zh: "約 15:00" }, title: { en: "Check in — La'gent Stay Shin-Sapporo", zh: "入住 — La'gent Stay 新札幌" }, notes: { en: "Check-in from 15:00. Leave the car here for the evening.", zh: "15:00 起可入住。夜晚架車就泊喺度。" }, map: "La'gent Stay Shin-Sapporo" },
+      { icon: "🚇", time: { en: "~16:00", zh: "約 16:00" }, title: { en: "Subway to Odori", zh: "搭地鐵去大通" }, notes: { en: "Tozai Line from Shin-Sapporo → Odori (about 20 min)", zh: "東西線 新札幌 → 大通（約 20 分鐘）" }, map: "Shin-Sapporo Subway Station" },
+      { icon: "🍂", time: { en: "~16:30–20:00", zh: "約 16:30–20:00" }, title: { en: "Sapporo Autumn Fest — Odori Park", zh: "札幌秋季豐收節 — 大通公園" }, notes: { en: "Hokkaido's biggest food festival — about 300 stalls along ~1 km of Odori Park (Nishi 4–8, 10 & 11 chome): autumn produce, seafood, ramen, local beer & Hokkaido wine. Free entry, pay per dish. Open 10:00–20:30 (last order 20:00). Runs for about three weeks in September–October — check the dates.", zh: "北海道最大型嘅美食節 — 沿大通公園約 1 公里有 300 個左右攤位（西 4–8、10 及 11 丁目）：秋季農產、海鮮、拉麵、本地啤酒同北海道葡萄酒。免費入場，逐樣嘢計錢。10:00–20:30（最後點餐 20:00）。每年 9 月至 10 月舉行約三星期，請查日期。" }, map: "Odori Park Sapporo" },
+      { icon: "🚶", title: { en: "Walk to Susukino", zh: "步行去薄野" }, notes: { en: "About 10 min south along Ekimae-dori · photo stop: the Nikka Whisky neon sign at Susukino crossing", zh: "沿驛前通向南行約 10 分鐘 · 影相位：薄野十字路口嘅 Nikka 威士忌霓虹招牌" } },
+      { icon: "🍜", time: { en: "Optional · if still hungry", zh: "可選 · 仲食得落就去" }, title: { en: "Sapporo miso ramen — Sumire, Susukino store", zh: "札幌味噌拉麵 — すみれ 薄野店" }, notes: { en: "Legendary Sapporo miso ramen since 1964 — rich miso broth under a hot layer of lard, chewy curly noodles. 2F Pixis Bldg, Minami 3 Nishi 3, 1 min from Susukino Station. Open 11:00–24:00 daily. Can queue at peak times. Phone 011-200-4567", zh: "1964 年起嘅傳奇札幌味噌拉麵 — 濃味噌湯底上面浮住一層熱豬油，配彈牙捲麵。南 3 条西 3 Pixis 大廈 2 樓，距離薄野站 1 分鐘。每日 11:00–24:00。繁忙時間要排隊。電話 011-200-4567" }, map: "すみれ 札幌すすきの店" },
+      { icon: "🍨", time: { en: "Dessert", zh: "甜品" }, title: { en: "Shime parfait — Parfaiteria PaL", zh: "收尾芭菲 — Parfaiteria PaL" }, notes: { en: "Sapporo's 'end the night with a parfait' tradition — PaL started the night-parfait trend. Grown-up, not-too-sweet parfaits (some with alcohol). 6F, opposite Hotel Mercure, 3 min from Susukino Station. Fri 18:00–02:00 (last order 01:30).", zh: "札幌人「夜晚用芭菲收尾」嘅傳統 — 呢間就係始祖。大人口味，唔會好甜（部分加咗酒）。6 樓，Mercure 酒店對面，距離薄野站 3 分鐘。星期五 18:00–02:00（最後點餐 01:30）。" }, map: "パフェテリア パル すすきの" },
+      { icon: "🚕", time: { en: "Late", zh: "夜深" }, title: { en: "Back to the hotel", zh: "返酒店" }, notes: { en: "Last subway to Shin-Sapporo leaves around midnight — otherwise taxi, about 25 min.", zh: "去新札幌嘅尾班地鐵大約午夜開 — 否則搭的士，約 25 分鐘。" } }
+    ], hotel: { ...HOTELS.sapporo, night: { en: "Night 1 of 2", zh: "第 1 晚（共 2 晚）" } } },
+    { tab: "Day 8", date: { en: "Day 8 · Saturday", zh: "第 8 日 · 星期六" }, place: { en: "Sapporo", zh: "札幌" }, stops: [
+      { icon: "🍳", time: { en: "Morning", zh: "早上" }, title: { en: "Breakfast at the hotel — La'gent Stay Shin-Sapporo", zh: "酒店早餐 — La'gent Stay 新札幌" }, map: "La'gent Stay Shin-Sapporo" },
+      { icon: "🚗", title: { en: "Drive to Takino Suzuran Hillside National Park", zh: "自駕前往國營瀧野鈴蘭丘陵公園" }, notes: { en: "About 30 min from the hotel (19.5 km) · paid car park at the entrance", zh: "由酒店約 30 分鐘（19.5 公里）· 入口有收費停車場" } },
+      { icon: "🍁", time: { en: "Morning (opens 09:00)", zh: "上午（09:00 開園）" }, title: { en: "Takino Suzuran Hillside National Park", zh: "國營瀧野鈴蘭丘陵公園" }, notes: { en: "Huge national park in the hills of Minami-ku. Early October: bright red kochia hills, autumn leaves, flower gardens and Ashiribetsu Falls (one of Japan's top 100 waterfalls). Adults ¥400, 65+ ¥200. Open 09:00–17:00. Allow 2–3 hrs — comfy shoes.", zh: "位於南區山丘嘅大型國營公園。10 月初：滿山火紅掃帚草、紅葉、花園，仲有阿西里別瀑布（アシリベツの滝，日本百大瀑布之一）。成人 ¥400，65 歲以上 ¥200。09:00–17:00 開放。預留 2–3 小時 — 著對舒服嘅鞋。" }, map: "国営滝野すずらん丘陵公園" },
+      { icon: "🚗", title: { en: "Drive to Tsukisappu Jingisukan Club", zh: "自駕前往月寒成吉思汗俱樂部" }, notes: { en: "About 25 min", zh: "約 25 分鐘" } },
+      { icon: "🐑", time: { en: "Lunch", zh: "午餐" }, title: { en: "Tsukisappu Jingisukan Club (mutton jingisukan)", zh: "月寒成吉思汗俱樂部（羊肉成吉思汗燒）" }, notes: { en: "Old-school jingisukan restaurant since 1953, surrounded by greenery on the site of Sapporo's old sheep farm — famous for proper mutton grilled on the dome pan. About ¥2,000–3,000 pp. Open 11:00–20:00, closed Wednesdays. Book online (phone can be busy): 011-851-8014. Free parking.", zh: "1953 年創業嘅老字號成吉思汗店，位於札幌舊綿羊牧場舊址，四周都係綠樹 — 以正宗羊肉配拱形鐵板燒聞名。每位約 ¥2,000–3,000。11:00–20:00 營業，逢星期三休息。網上訂位較好（電話經常打唔通）：011-851-8014。免費泊車。" }, map: "ツキサップじんぎすかんクラブ" },
+      { icon: "🚆", time: { en: "Getting there — option A: train", zh: "交通選擇 A：坐火車" }, title: { en: "Leave the car at the hotel, train to Sapporo", zh: "架車留喺酒店，坐火車入札幌" }, notes: { en: "Drive back to the hotel & park (15 min) → walk 5 min to JR Shin-Sapporo → train to Sapporo (about 10 min). Fastest, no parking costs, everyone can drink at dinner. Subway Sapporo → Susukino for dinner (2 stops), then subway back (change at Odori to the Tozai Line) or taxi.", zh: "揸返酒店泊車（15 分鐘）→ 步行 5 分鐘去 JR 新札幌 → 火車去札幌（約 10 分鐘）。最快，唔使泊車費，晚餐人人都飲得。食晚飯搭地鐵 札幌 → 薄野（2 個站），之後搭地鐵返（喺大通轉東西線）或搭的士。" } },
+      { icon: "🚗", time: { en: "Getting there — option B: drive all the way", zh: "交通選擇 B：全程自駕" }, title: { en: "Drive to the station, then drive to dinner", zh: "揸車去車站，再揸去食晚飯" }, notes: { en: "Drive to Sapporo Station (about 35 min) and park → shop → move the car to a coin car park near Susukino → dinner → drive back to the hotel. Car holds the shopping bags, door-to-door home. Parking twice + paid city parking; driver can't drink.", zh: "揸車去札幌站（約 35 分鐘）泊低 → 購物 → 將車駛去薄野附近嘅收費停車場 → 食晚飯 → 揸返酒店。購物袋可以放喺車，門到門。要泊兩次車，市中心泊車又貴；司機唔飲得。" } },
+      { icon: "🅿️", time: { en: "Getting there — option C: drive + subway", zh: "交通選擇 C：自駕＋地鐵" }, title: { en: "Park once at the station, subway to dinner", zh: "喺車站泊一次，搭地鐵去食晚飯" }, notes: { en: "Drive to Sapporo Station (about 35 min) and park at JR Tower / Daimaru car park (discounts with purchases) → shop → subway 2 stops to Susukino for dinner → subway back to the car → drive home. Park once, bags stay in the car; driver can't drink.", zh: "揸車去札幌站（約 35 分鐘），泊 JR Tower／大丸停車場（購物有折）→ 購物 → 搭地鐵 2 個站去薄野食晚飯 → 搭地鐵返嚟取車 → 揸返酒店。只泊一次，購物袋可以放喺車；司機唔飲得。" } },
+      { icon: "🛍️", time: { en: "Afternoon", zh: "下午" }, title: { en: "Shopping at JR Sapporo Station (JR Tower)", zh: "JR 札幌站購物（JR Tower）" }, notes: { en: "All connected indoors: Daimaru department store (incl. Pokémon Center, 8F) and Sapporo Stellar Place (fashion & shops) 10:00–20:00; APIA underground mall 10:00–20:00; Hokkaido Dosanko Plaza (2,000+ Hokkaido souvenirs & local specialties, West Concourse North Exit) 08:30–20:00. Food hall in Daimaru basement.", zh: "全部室內相連：大丸百貨（8 樓有 Pokémon Center）同 Stellar Place（時裝及商店）10:00–20:00；APIA 地下街 10:00–20:00；北海道道產子廣場（2,000 幾款北海道手信同特產，西通道北口）08:30–20:00。大丸地庫有美食廣場。" }, map: "JR Tower Sapporo Station" },
+      { icon: "🚇", title: { en: "To Susukino for dinner", zh: "去薄野食晚飯" }, notes: { en: "Subway Namboku Line from Sapporo Station → Susukino (2 stops, about 5 min) + 4 min walk — or drive & coin park (option B)", zh: "地鐵南北線 札幌站 → 薄野（2 個站，約 5 分鐘），再行 4 分鐘 — 或者自駕泊收費停車場（選擇 B）" } },
+      { icon: "🍱", time: { en: "Dinner", zh: "晚餐" }, title: { en: "Unagi Hisada — Kansai-style eel", zh: "鰻 久田 — 關西風鰻魚" }, notes: { en: "Book ahead — seat reservations can be made through KKday (order & pay for the food at the restaurant). Arrive on time — the restaurant treats latecomers as no-shows, and seating is time-limited. Grilled eel using live Japanese eel, cooked the traditional Kansai way by a chef with 50 years' experience. About ¥7,000 pp. Minami 6 Nishi 4, Susukino. Phone 011-552-0717", zh: "建議預訂 — 可經 KKday 訂座（食物到店再叫再俾錢）。請準時 — 遲到會當放棄訂座，而且用餐有時限。用活鰻以傳統關西做法燒製，師傅有 50 年經驗。每位約 ¥7,000。薄野南 6 条西 4。電話 011-552-0717" }, map: "鰻 久田 札幌" },
+      { icon: "🚇", time: { en: "After dinner", zh: "晚餐後" }, title: { en: "Back to the hotel", zh: "返酒店" }, notes: { en: "Option A: subway Susukino → Odori, change to the Tozai Line → Shin-Sapporo (about 25–30 min), or taxi about 25 min. Option B: drive from Susukino (about 25–30 min). Option C: subway 2 stops back to Sapporo Station, then drive (about 25–30 min).", zh: "選擇 A：地鐵 薄野 → 大通，轉東西線 → 新札幌（約 25–30 分鐘），或搭的士約 25 分鐘。選擇 B：由薄野揸車返（約 25–30 分鐘）。選擇 C：地鐵坐 2 個站返札幌站取車，再揸返（約 25–30 分鐘）。" } }
+    ], hotel: { ...HOTELS.sapporo, night: { en: "Night 2 of 2", zh: "第 2 晚（共 2 晚）" } } },
+    { tab: "Day 9", date: { en: "Day 9 · Sunday", zh: "第 9 日 · 星期日" }, place: { en: "Asahikawa", zh: "旭川" }, stops: [
+      { icon: "🍳", time: { en: "Morning", zh: "早上" }, title: { en: "Breakfast at the hotel — La'gent Stay Shin-Sapporo", zh: "酒店早餐 — La'gent Stay 新札幌" }, map: "La'gent Stay Shin-Sapporo" },
+      { ...checkout("sapporo"), time: { en: "~09:30 (by 11:00)", zh: "約 09:30(11:00 前)" } },
+      { icon: "🚗", title: { en: "Drive to Otokoyama Sake Park (Asahikawa)", zh: "自駕前往男山酒造（旭川）" }, notes: { en: "About 1 hr 55 min (137 km). Stay on the expressway but come off at Fukagawa and take old Route 12 in through Kamui Kotan gorge — only ~12 min more than running straight through, and the shorter ticket costs ¥2,830 instead of ¥3,380. Sunday, so the ETC holiday discount applies. Leave by about 09:30 for the 11:30 arrival — leaving at 10:00 puts you at Otokoyama nearer 12:00 and eats into the zoo.", zh: "約 1 小時 55 分（137 公里）。繼續走高速，但於深川下高速，轉舊 12 號路經神居古潭峡谷入旭川——比直走只多約 12 分，而短程票價 ¥2,830，比 ¥3,380 便宜。星期日，有 ETC 假日折扣。約 09:30 出發才趕到 11:30；10:00 才走嘅話約 12:00 才到男山，會轡到動物園時間。" }, dir: [{ label: { en: "🏞️ Via Kamui Kotan", zh: "🏞️ 經神居古潭" }, meta: { en: "1 hr 55 · ¥2,830 · river gorge on old Route 12", zh: "1 小時 55 分 · ¥2,830 · 舊 12 號路河谷" }, from: "43.03928,141.47182", to: "43.79604,142.40937", via: ["43.73205,142.20132"] }, { fast: true, label: { en: "🛣️ Straight through", zh: "🛣️ 直走高速" }, meta: { en: "1 hr 43 · ¥3,380 · skips the gorge, costs more", zh: "1 小時 43 分 · ¥3,380 · 略過峡谷，反而貴" }, from: "43.03928,141.47182", to: "43.79604,142.40937" }] },
+      { icon: "🏞️", time: { en: "Optional · on the way", zh: "可選 · 順路" }, title: { en: "Kamui Kotan gorge", zh: "神居古潭" }, notes: { en: "Rocky gorge on the Ishikari River with a suspension bridge — an Ainu sacred site ('place of the gods'), with autumn colours starting in early October. Just before Asahikawa. Free, free parking. Adds about 30–40 min (the zoo visit gets a little shorter — last entry 16:00).", zh: "石狩川上嘅岩石峽谷，有吊橋 — 愛努族聖地（意思係「神之居所」），10 月初開始轉紅葉。就喺旭川之前。免費，免費泊車。大約多花 30–40 分鐘（動物園時間會短咗少少 — 最後入場 16:00）。" }, map: "Kamui Kotan Asahikawa" },
+      { icon: "🍶", time: { en: "~11:30", zh: "約 11:30" }, title: { en: "Otokoyama Sake Park", zh: "男山酒造資料館" }, notes: { en: "One of Hokkaido's oldest sake breweries (founded 1887). Sake museum + free sake tasting & shop. Driver: no tasting. Open 09:00–17:00. Free parking.", zh: "北海道最悠久嘅清酒酒藏之一（1887 年創業）。清酒博物館，連免費試飲同商店。揸車嗰位唔試得。09:00–17:00 開放。免費泊車。" }, map: "OTOKOYAMA SAKE PARK Asahikawa" },
+      { icon: "🚗", title: { en: "Drive to Asahiyama Zoo", zh: "自駕前往旭山動物園" }, notes: { en: "About 15 min", zh: "約 15 分鐘" } },
+      { icon: "🐧", time: { en: "~12:30–15:30", zh: "約 12:30–15:30" }, title: { en: "Asahiyama Zoo", zh: "旭山動物園" }, notes: { en: "Japan's famous 'behaviour' zoo — polar bears diving, penguins, seals swimming through a see-through tube, snow leopards, red pandas. Adults ¥1,000. Open 09:30–17:15, LAST ENTRY 16:00. Food stalls inside for lunch. It's hilly — comfy shoes.", zh: "日本著名嘅「行動展示」動物園 — 北極熊潛水、企鵝、海豹游過透明管道，仲有雪豹同小熊貓。成人 ¥1,000。09:30–17:15 開放，最後入場 16:00。園內有小食攤可以解決午餐。園區多斜路 — 著對舒服嘅鞋。" }, map: "Asahiyama Zoo" },
+      { icon: "🚗", title: { en: "Drive to the hotel", zh: "自駕前往酒店" }, notes: { en: "About 20 min", zh: "約 20 分鐘" } },
+      { icon: "🔑", time: { en: "~16:00", zh: "約 16:00" }, title: { en: "Check in — OMO7 Asahikawa", zh: "入住 — OMO7 旭川" }, notes: { en: "Check-in from 15:00.", zh: "15:00 起可入住。" }, map: "OMO7 Asahikawa by Hoshino Resorts" },
+      { icon: "🐖", time: { en: "Dinner option 2", zh: "晚餐選擇 2" }, title: { en: "Tonkatsu — Asahikawa Isen, 2-jo store", zh: "炸豬扒 — あさひ川井泉 2 条店" }, notes: { en: "Asahikawa's classic tonkatsu house since 1972 — a licensed branch of Tokyo's famous Yushima Isen (the home of the katsu sando). Try the limited 'Isen Rosu' (loin). About 10 min walk from the hotel — no parking, so walk. Dinner 17:00–20:30 (last order 20:15), open daily. Phone 0120-10-6622", zh: "1972 年起嘅旭川經典炸豬扒店 — 東京名店湯島井泉（炸豬扒三文治發源地）嘅授權分店。可以試限定嘅「井泉ロース」（豬柳）。由酒店步行約 10 分鐘 — 無泊車位，行過去好啲。晚市 17:00–20:30（最後點餐 20:15），每日營業。電話 0120-10-6622" }, map: "あさひ川井泉 2条店" },
+      { icon: "🍣", time: { en: "Dinner option 1", zh: "晚餐選擇 1" }, title: { en: "Kaiten Sushi Toriton — Kyokushin store (conveyor sushi)", zh: "迴轉壽司 トリトン 旭神店（迴轉壽司）" }, notes: { en: "One of Hokkaido's best-loved conveyor sushi chains — big, fresh toppings. About 10 min drive (or taxi) from the hotel, car park available. Open 11:00–22:00 (last order 21:30; may close early when very busy). No bookings — check the queue on the Toriton LINE account. Phone 0166-60-7711", zh: "北海道最受歡迎嘅迴轉壽司連鎖店之一 — 魚料又大又新鮮。由酒店約 10 分鐘車程（或搭的士），有停車場。11:00–22:00 營業（最後點餐 21:30；太多人可能提早收）。不設訂座 — 可用 トリトン 嘅 LINE 睇排隊情況。電話 0166-60-7711" }, map: "回転寿し トリトン 旭神店" },
+      { icon: "🍨", time: { en: "Optional · dessert", zh: "可選 · 甜品" }, title: { en: "Parfait at OMO Café & Bal (in the hotel, 1F)", zh: "OMO Café & Bal 芭菲（酒店 1 樓）" }, notes: { en: "Back at OMO7 — try the fun 'ramen bowl parfait' (¥1,000, it's dessert!) or the strawberry & cream parfait (¥1,500). Open 11:00–22:00 (last order 21:30). Phone 0166-29-2666", zh: "返到 OMO7 — 可以試吓搞鬼嘅「拉麵碗芭菲」（¥1,000，其實係甜品！）或者士多啤梨忌廉芭菲（¥1,500）。11:00–22:00 營業（最後點餐 21:30）。電話 0166-29-2666" }, map: "OMO7 Asahikawa by Hoshino Resorts" }
+    ], hotel: { ...HOTELS.asahikawa, night: { en: "1 night", zh: "一晚" } } },
+    { tab: "Day 10", date: { en: "Day 10 · Monday", zh: "第 10 日 · 星期一" }, place: { en: "Furano", zh: "富良野" }, stops: [
+      { icon: "☕", time: { en: "Morning", zh: "早上" }, title: { en: "Breakfast — Yoshinori Coffee, Asahikawa Ekimae", zh: "早餐 — ヨシノリコーヒー 旭川站前店" }, notes: { en: "Hokkaido coffee-shop chain — morning sets of toast or sandwiches with coffee. About 8–10 min walk from the hotel, near Asahikawa Station (1F Hotel Wing International). Opens 07:00–07:30 (sources differ), open daily.", zh: "北海道咖啡店連鎖 — 早餐套餐有多士或三文治配咖啡。由酒店步行約 8–10 分鐘，近旭川站（Hotel Wing International 1 樓）。07:00–07:30 開門（各資料唔一致），每日營業。" }, map: "ヨシノリコーヒー 旭川駅前店" },
+      { ...checkout("asahikawa"), time: { en: "~09:00–09:30 (by 11:00)", zh: "約 09:00–09:30(11:00 前)" } },
+      { icon: "🚗", title: { en: "Drive to Shikisai-no-Oka (Biei)", zh: "自駕前往四季彩之丘（美瑛）" }, notes: { en: "About 45 min (34 km)", zh: "約 45 分鐘（34 公里）" } },
+      { icon: "🌈", title: { en: "Shikisai-no-Oka — 'hill of four-season colours'", zh: "四季彩之丘 —「四季色彩之丘」" }, notes: { en: "Hilltop flower farm with sweeping views to the Tokachidake mountains. Early October: bright red kochia, dahlias & late flowers until the first frost. Tractor bus / buggies and an alpaca farm (paid), soft-serve & farm shop. Free entry & parking in October. Open 08:40–17:00. Allow about 45 min.", zh: "山丘上嘅花田，可遠眺十勝岳連峰。10 月初：鮮紅掃帚草、大麗花同其他秋花，一直開到初霜。有拖拉機巴士／遊園車同羊駝牧場（收費），仲有軟雪糕同農場店。10 月免費入場及泊車。08:40–17:00 開放。預留約 45 分鐘。" }, map: "四季彩の丘 美瑛" },
+      { icon: "🚗", title: { en: "Drive to Shirogane Blue Pond", zh: "自駕前往白金青池" }, notes: { en: "About 20 min", zh: "約 20 分鐘" } },
+      { icon: "💧", title: { en: "Shirogane Blue Pond & Shirahige Waterfall", zh: "白金青池及白鬚瀑布" }, notes: { en: "Hokkaido's famous milky-blue pond with standing dead trees — autumn leaves around it in early October. Shirahige Waterfall (blue water pouring into a gorge) is 5 min further up the road, free. Pond car park 07:00–19:00, ¥1,000.", zh: "北海道著名嘅奶藍色池塘，池中有枯樹企立 — 10 月初四周有紅葉。白鬚瀑布（藍色水流瀉入峽谷）再上山 5 分鐘，免費。青池停車場 07:00–19:00，¥1,000。" }, map: "Shirogane Blue Pond" },
+      { icon: "🍛", time: { en: "Lunch", zh: "午餐" }, title: { en: "Biei curry udon — Komugibatake to Aoi Ike", zh: "美瑛咖喱烏冬 — 小麥畑と青い池" }, notes: { en: "Biei's local dish: udon made from Biei-grown wheat with a thick curry dipping sauce (local pork & vegetables) — also a grilled-noodle version with seasonal veg. In Shirogane, near the Blue Pond. Open about 11:00–15:00 (hours from an older guide — check).", zh: "美瑛名物：用美瑛小麥整嘅烏冬，配濃咖喱蘸汁（本地豬肉同蔬菜）— 亦有配時令蔬菜嘅燒烏冬。喺白金，近青池。約 11:00–15:00 營業（資料較舊，去之前確認下）。" }, map: "小麦畑と青い池 美瑛" },
+      { icon: "🌋", time: { en: "Optional · +12 min each way", zh: "可選 · 來回各多 12 分鐘" }, title: { en: "Tokachidake Bogakudai viewpoint", zh: "十勝岳望岳台" }, notes: { en: "About 15 min further up the mountain road past Shirogane Onsen. Lookout at the foot of the active Tokachidake volcano with sweeping views over the autumn slopes (usually peak colour in early October). Free parking & rest house. Chilly & windy — bring a jacket. Allow 20–30 min.", zh: "過咗白金溫泉再沿山路上約 15 分鐘。位於活火山十勝岳山腳嘅觀景台，飽覽秋色山坡（通常 10 月初最靚）。免費泊車，有休息所。又凍又大風 — 記得帶件外套。預留 20–30 分鐘。" }, map: "十勝岳望岳台" },
+      { icon: "🚗", title: { en: "Drive to Farm Tomita (Nakafurano)", zh: "自駕前往富田農場（中富良野）" }, notes: { en: "About 30 min (24 km) straight from the Blue Pond, or about 40 min if you go up to Bogakudai first", zh: "由青池直去約 30 分鐘（24 公里）；若先上望岳台則約 40 分鐘" } },
+      { icon: "💜", title: { en: "Farm Tomita", zh: "富田農場" }, notes: { en: "Furano's most famous flower farm. Lavender season is over, but autumn flower fields last into early October — plus lavender shops, lavender soft-serve, café & melon treats. Free entry & parking. Open 09:30–16:30 in October.", zh: "富良野最出名嘅花田農場。薰衣草季節已過，但秋花田開到 10 月初 — 仲有薰衣草商店、薰衣草軟雪糕、咖啡店同蜜瓜甜品。免費入場及泊車。10 月 09:30–16:30 開放。" }, map: "Farm Tomita" },
+      { icon: "🚗", title: { en: "Drive to the hotel", zh: "自駕前往酒店" }, notes: { en: "About 15 min · check-in from 15:00", zh: "約 15 分鐘 · 15:00 起可入住" } },
+      { icon: "🚗", title: { en: "Drive to Ningle Terrace", zh: "自駕前往森林精靈露台" }, notes: { en: "About 11 min · free parking at the New Furano Prince Hotel, right in front", zh: "約 11 分鐘 · 新富良野王子酒店門口有免費泊車" } },
+      { icon: "🛖", time: { en: "~17:00–18:00", zh: "約 17:00–18:00" }, title: { en: "Ningle Terrace (forest craft village)", zh: "森林精靈露台（林中手作小屋村）" }, notes: { en: "About 15 little log-cabin craft shops along a wooden boardwalk in the forest beside the New Furano Prince Hotel — handmade candles, glass, wood carvings, music boxes & more. Arrive around sunset (about 17:05) when the cabin lights come on. Free entry. Open 11:00–19:45 daily; some shops have irregular days off. Allow 45–60 min. Running late? Go straight here from Farm Tomita and check in afterwards.", zh: "新富良野王子酒店旁邊嘅樹林中，木棧道沿途有約 15 間小木屋手作店 — 有手工蠟燭、玻璃、木雕、音樂盒等等。日落前後到（約 17:05）最靚，小屋會着晒燈。免費入場。每日 11:00–19:45；部分店不定休。預留 45–60 分鐘。遲咗？由富田農場直接過嚟，之後先返酒店入住。" }, map: "Ningle Terrace Furano" },
+      { icon: "🚗", title: { en: "Drive back & park at the hotel", zh: "揸返去酒店泊車" }, notes: { en: "About 11 min. Both dinner options are a short walk from the hotel, so the driver can have a drink.", zh: "約 11 分鐘。兩間晚餐選擇由酒店行幾分鐘就到，所以司機都可以飲返杯。" } },
+      { icon: "🔥", time: { en: "Dinner option 1", zh: "晚餐選擇 1" }, title: { en: "Yakitori — Tori-sei", zh: "串燒 — 鳥せい" }, notes: { en: "Furano's best-known chicken restaurant — charcoal-grilled young chicken (never frozen), skewers, fried chicken & a big sake list. Lively and great value, about ¥3,000 pp. Honcho 7-1, about 5 min walk from the hotel. Open 12:00–24:00, irregular days off — call ahead: 0167-23-1189", zh: "富良野最出名嘅雞料理店 — 炭燒嫩雞（從不冷藏）、串燒、炸雞，清酒選擇好多。氣氛熱鬧又抵食，每位約 ¥3,000。本町 7-1，由酒店步行約 5 分鐘。12:00–24:00 營業，不定休 — 去之前打電話問吓：0167-23-1189" }, map: "鳥せい 富良野" },
+      { icon: "🍢", time: { en: "Dinner option 2", zh: "晚餐選擇 2" }, title: { en: "Yakitori — Sumiyaki Kushi-tetsu", zh: "串燒 — 炭焼 串てつ" }, notes: { en: "Cosy charcoal yakitori skewer izakaya (local pork too), about ¥3,000 pp. Asahimachi 1-20 — about 2–3 min walk from the hotel. Dinner 17:30–24:00, irregular days off — call ahead: 0167-22-3868", zh: "溫馨嘅炭燒串燒居酒屋（亦有本地豬肉），每位約 ¥3,000。朝日町 1-20 — 由酒店步行約 2–3 分鐘。晚市 17:30–24:00，不定休 — 去之前打電話問吓：0167-22-3868" }, map: "炭焼 串てつ 富良野" }
+    ], hotel: { ...HOTELS.furano, night: { en: "1 night", zh: "一晚" } } },
+    { tab: "Day 11", date: { en: "Day 11 · Tuesday", zh: "第 11 日 · 星期二" }, place: { en: "New Chitose Airport", zh: "新千歲機場" }, stops: [
+      { icon: "☕", time: { en: "~08:00 Breakfast", zh: "約 08:00 早餐" }, title: { en: "Breakfast & coffee — RONIN Coffee", zh: "早餐連咖啡 — RONIN Coffee" }, notes: { en: "About 10 min drive from the hotel. Stylish café — lattes with locally roasted beans & Hokkaido milk, Furano honey latte, breakfast/brunch food (vegan & gluten-free options, English menu). Grab takeaway coffee for the drive. Open 07:30–15:00 daily. Kitanomine, Furano. Parking. Phone 080-9007-7928", zh: "由酒店約 10 分鐘車程。有格調嘅咖啡店 — 用本地烘焙咖啡豆配北海道鮮奶整拿鐵，仲有富良野蜂蜜拿鐵、早餐／早午餐（有素食同無麩質選擇，備英文餐牌）。買杯咖啡上車飲。每日 07:30–15:00。富良野北之峰。設泊車。電話 080-9007-7928" }, map: "RONIN Coffee Furano" },
+      { icon: "🚗", title: { en: "Back to the hotel", zh: "返酒店" }, notes: { en: "About 6 min", zh: "約 6 分鐘" } },
+      { ...checkout("furano"), time: { en: "~10:00 (by 11:00)", zh: "約 10:00(11:00 前)" } },
+      { icon: "🚗", title: { en: "Drive to Chitose city", zh: "自駕前往千歲市" }, notes: { en: "About 1 hr 55 min (123 km) via expressway — slightly longer than it looks, so leave Furano by about 10:15 to fit lunch, pancakes & the 15:00 car return", zh: "走高速約 1 小時 55 分（123 公里）— 比預期耐少少，所以約 10:15 就要離開富良野，先趕得切食午餐、班戟同 15:00 還車" } },
+      { icon: "🍛", time: { en: "~12:15 Lunch", zh: "約 12:15 午餐" }, title: { en: "Soup curry — SAMA Chitose store", zh: "湯咖喱 — SAMA 千歲店" }, notes: { en: "Popular Sapporo soup curry chain, Chitose branch. Lunch 11:00–15:00 (last order 14:30), closed 2nd Wednesday. Suehiro 4-1-16, Chitose — about 15 min from the airport. Parking. Phone 0123-42-0401", zh: "人氣札幌湯咖喱連鎖店嘅千歲分店。午市 11:00–15:00（最後點餐 14:30），每月第二個星期三休息。千歲市末廣 4-1-16 — 距離機場約 15 分鐘。設泊車。電話 0123-42-0401" }, map: "SAMA 千歳店" },
+      { icon: "🚗", title: { en: "Drive to Doremo LeTAO", zh: "自駕前往 Doremo LeTAO" }, notes: { en: "About 5 min", zh: "約 5 分鐘" } },
+      { icon: "🥞", time: { en: "~13:15 Dessert", zh: "約 13:15 甜品" }, title: { en: "Soufflé pancakes — Doremo LeTAO", zh: "梳乎厘班戟 — Doremo LeTAO" }, notes: { en: "Otaru's famous LeTAO sweets brand — this Chitose shop is the only LeTAO with its own bakery. Café famous for melt-in-your-mouth fluffy soufflé pancakes & seasonal parfaits; shop for LeTAO cheesecake souvenirs. Café 11:00–17:00 (pancake last order 16:00). Pancakes are made to order — allow time. Asahimachi 6-1-1, Chitose. ~70 parking spaces. Phone 0123-23-1566", zh: "小樽名牌甜品 LeTAO — 呢間千歲店係唯一自設烘焙坊嘅 LeTAO。Café 以入口即化嘅梳乎厘班戟同時令芭菲聞名；商店有 LeTAO 芝士蛋糕手信。Café 11:00–17:00（班戟最後點餐 16:00）。班戟即叫即整 — 要預時間。千歲市朝日町 6-1-1。約 70 個車位。電話 0123-23-1566" }, map: "Doremo LeTAO Chitose" },
+      { icon: "⛽", title: { en: "Fill up the tank near the airport", zh: "喺機場附近入滿油" }, notes: { en: "Japanese rentals must be returned with a full tank — keep the fuel receipt. There are petrol stations along the road to the airport; fill up within about 10 km of the return point.", zh: "日本租車一定要入滿油先還得 — 記得留低入油收據。去機場沿路有油站；喺距離還車點約 10 公里內入油。" } },
+      { icon: "🚙", time: { en: "By 15:00", zh: "15:00 前" }, title: { en: "Return hire car — Jstyle Rental Car", zh: "還租車 — Jstyle Rental Car" }, notes: { en: "Must be back by 15:00. Phone +81-11-676-8082 (also on LINE). Return point is given with the booking (usually the same office as pickup, then shuttle to the terminal).", zh: "必須 15:00 前還車。電話 +81-11-676-8082（亦可用 LINE）。還車地點見訂單（一般同取車嗰間辦公室一樣，之後有接駁車去客運大樓）。" }, map: "New Chitose Airport" },
+      { icon: "🔑", time: { en: "~15:00+", zh: "約 15:00 後" }, title: { en: "Check in — Air Terminal Hotel", zh: "入住 — Air Terminal Hotel" }, notes: { en: "Inside the airport terminal building (3F). Check-in from 15:00.", zh: "就喺機場客運大樓內（3 樓）。15:00 起可入住。" }, map: "Air Terminal Hotel New Chitose Airport" },
+      { icon: "🍽️", time: { en: "Dinner", zh: "晚餐" }, title: { en: "Dinner at New Chitose Airport — pick on the night", zh: "喺新千歲機場食晚飯 — 當晚先決定" }, notes: { en: "Most restaurants are on 3F of the domestic terminal (Gourmet World), a short walk from the hotel. Most close around 20:00–21:00, so don't eat too late. Ideas: 🍜 Hokkaido Ramen Dojo — 10 famous Hokkaido ramen shops in one alley (e.g. Ebisoba Ichigen for prawn-broth ramen) · 🍣 Kantaro — Hakodate-style conveyor sushi with local fish, 11:00–20:30 (last order 20:00) · 🐑 Matsuo Jingisukan — Hokkaido's famous marinated-lamb jingisukan, 10:00–21:00 (last order 20:30). Plus Royce' Chocolate World & souvenir shops for last-minute gifts.", zh: "大部分餐廳喺國內線航廈 3 樓（美食世界），由酒店行幾分鐘就到。多數 20:00–21:00 左右收，唔好食得太夜。推介：🍜 北海道拉麵道場 — 一條街集合 10 間北海道名拉麵店（例如えびそば一幻嘅蝦湯拉麵）· 🍣 函太郎 — 函館風迴轉壽司，用本地魚，11:00–20:30（最後點餐 20:00）· 🐑 松尾成吉思汗 — 北海道出名嘅醃羊肉成吉思汗，10:00–21:00（最後點餐 20:30）。仲有 Royce' 朱古力世界同手信店，可以買埋最後啲手信。" }, map: "New Chitose Airport Domestic Terminal Gourmet World" }
+    ], hotel: { ...HOTELS.airport, night: { en: "Last night", zh: "最後一晚" } } },
+    { tab: "Day 12", date: { en: "Day 12 · Wednesday", zh: "第 12 日 · 星期三" }, place: { en: "Sapporo → Bangkok", zh: "札幌 → 曼谷" }, stops: [
+      { ...checkout("airport"), time: { en: "~07:15", zh: "約 07:15" } },
+      { icon: "🧳", time: { en: "~07:30", zh: "約 07:30" }, title: { en: "Check in & drop bags — International Terminal", zh: "辦理登機手續及寄行李 — 國際線航廈" }, notes: { en: "About 10 min walk from the hotel via the connecting walkway. Tip: drop bags first, then come back to the domestic terminal (before security) for breakfast — the restaurants below are NOT past international security.", zh: "由酒店經連接通道步行約 10 分鐘。貼士：先寄咗行李，再返國內線航廈（過安檢之前）食早餐 — 下面啲餐廳唔係喺國際線安檢之後。" } },
+      { icon: "🍳", time: { en: "Breakfast ideas (domestic terminal, before security)", zh: "早餐選擇（國內線航廈，過安檢前）" }, title: { en: "Breakfast at New Chitose Airport — pick one", zh: "新千歲機場早餐 — 揀一間" }, notes: { en: "🍽️ Royal Host (3F) — sit-down family restaurant, morning sets, opens about 07:00–07:20 · ☕ PRONTO (4F) — coffee & light breakfast, morning menu 07:30–10:00 · ☕ Miyakoshi Coffee (3F) — toast sets & coffee in a quiet café, opens 08:00 · 🍜 Tomikawa Seimen (3F) — miso ramen from 08:00 for a last Hokkaido ramen · 🏪 Lawson (1F arrivals) — onigiri, sandwiches & hot snacks from 06:00. Allow time to walk back and clear international security & immigration by about 09:30.", zh: "🍽️ Royal Host（3 樓）— 有座位嘅家庭餐廳，有早餐套餐，約 07:00–07:20 開門 · ☕ PRONTO（4 樓）— 咖啡同輕早餐，早餐餐牌 07:30–10:00 · ☕ 宮越屋珈琲（3 樓）— 寧靜咖啡店，有多士套餐同咖啡，08:00 開門 · 🍜 富川製麵所（3 樓）— 08:00 起有味噌拉麵，最後食返碗北海道拉麵 · 🏪 Lawson（1 樓入境層）— 06:00 起有飯糰、三文治同熱食。記得留返時間行返去，約 09:30 前過晒國際線安檢同出境。" }, map: "New Chitose Airport Domestic Terminal" },
+      { icon: "✈️", time: "10:30", title: { en: "Sapporo → Bangkok", zh: "札幌 → 曼谷" }, notes: { en: "Flight time about 7 hr · lands Bangkok ~15:30 Bangkok time (2 hrs behind Japan) · be at check-in by 08:00", zh: "飛行時間約 7 小時 · 曼谷時間約 15:30 抵達曼谷（比日本慢 2 小時）· 08:00 前到櫃檯辦登機" }, map: "New Chitose Airport International Terminal" },
+      { icon: "✈️", time: { en: "00:01 (Thu)", zh: "00:01（星期四）" }, title: { en: "Bangkok → Home", zh: "曼谷 → 出發地" }, notes: { en: "Leaves just after midnight, so the ticket shows the next day's date · flight time about 6 hr 55 min · lands home early on Day 13", zh: "過咗午夜先起飛，機票日期係翌日 · 飛行時間約 6 小時 55 分 · 第 13 日清晨返到" }, map: "Suvarnabhumi Airport" }
+    ]}
+  ],
+  info: [
+    { icon: "🚨", title: { en: "Emergency in Japan", zh: "日本緊急電話" }, notes: { en: "Police 110 · Ambulance / Fire 119", zh: "警察 110 · 救護車／消防 119" } }
+  ]
+};
+// ===== END TRIP DATA =====
+</script>
+<script>
+  const esc = s => String(s ?? "").replace(/[&<>"]/g, c => ({ "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;" }[c]));
+
+  // ----- Language: ?lang=zh / ?lang=en in the link, else last choice on this phone, else English -----
+  const UI = {
+    en: { tonight: "Tonight's hotel", checkIn: "Check-in", checkOut: "Check-out", bookedBy: "Booked by", phone: "Phone",
+          maps: "Open in Google Maps", info: "Useful info", infoTab: "Info", footer: "🍁 よい旅を · Have a great trip 🍁",
+          voucher: "Download the voucher (PDF)", pdf: "⬇ Download PDF", pdfFile: "trip-en.pdf", route: "Route", mapLink: "🗺️ Trip map", offline: "📲 Save for offline",
+          dow: { Sun: "Sun", Mon: "Mon", Tue: "Tue", Wed: "Wed", Thu: "Thu", Fri: "Fri", Sat: "Sat" } },
+    zh: { tonight: "今晚住宿", checkIn: "入住", checkOut: "退房", bookedBy: "預訂人", phone: "電話",
+          maps: "在 Google 地圖開啟", info: "實用資訊", infoTab: "資訊", footer: "🍁 よい旅を · 旅途愉快 🍁",
+          voucher: "下載憑證 PDF", pdf: "⬇ 下載 PDF", pdfFile: "trip-zh.pdf", route: "路線", mapLink: "🗺️ 行程地圖", offline: "📲 儲存離線使用",
+          dow: { Sun: "日", Mon: "一", Tue: "二", Wed: "三", Thu: "四", Fri: "五", Sat: "六" } }
+  };
+  const store = { get: k => { try { return localStorage.getItem(k); } catch { return null; } },
+                  set: (k, v) => { try { localStorage.setItem(k, v); } catch {} } };
+  const urlLang = new URLSearchParams(location.search).get("lang");
+  let lang = UI[urlLang] ? urlLang : (UI[store.get("lang")] ? store.get("lang") : "en");
+  store.set("lang", lang);
+
+  // Any text field can be a plain string or { en: "...", zh: "..." } (falls back to English)
+  const tx = v => (v && typeof v === "object") ? (v[lang] ?? v.en) : v;
+  const u = key => UI[lang][key];
+
+  const mapLink = addr => addr
+    ? `<a class="map" data-addr="${esc(addr)}" target="_blank" rel="noopener" href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(addr)}">📍 ${esc(u("maps"))}</a>`
+    : "";
+  const fileLink = f => f
+    ? `<a class="file" href="${esc(f.href)}" download target="_blank" rel="noopener">📄 ${esc(f.label ? tx(f.label) : u("voucher"))}</a>`
+    : "";
+  // Pinned driving route: waypoints force the exact road, so it cannot re-route onto the expressway
+  const dirUrl = d => `https://www.google.com/maps/dir/?api=1&travelmode=driving&origin=${encodeURIComponent(d.from)}&destination=${encodeURIComponent(d.to)}${d.via ? "&waypoints=" + encodeURIComponent(d.via.join("|")) : ""}${d.avoid ? "&avoid=" + encodeURIComponent(d.avoid) : ""}`;
+  // Each option says how long it takes and what it costs you, so the choice can be made at a glance
+  const dirLinks = ds => !ds ? "" : `<div class="routes">${ds.map(d => `
+      <a class="route${d.fast ? " fast" : ""}" target="_blank" rel="noopener" href="${dirUrl(d)}">
+        <b>${esc(tx(d.label))}</b><span>${esc(tx(d.meta))}</span>
+      </a>`).join("")}</div>`;
+  const isTravel = s => !s.time && !s.map && !s.file && ["🚗", "🚕", "🚶"].includes(s.icon);
+  const card = s => isTravel(s)
+    ? `<div class="travel">${esc(s.icon)} <b>${esc(tx(s.title))}</b>${s.notes ? " · " + esc(tx(s.notes)) : ""}${dirLinks(s.dir)}</div>`
+    : `<div class="card">
+      ${s.time ? `<div class="time">${esc(tx(s.time))}</div>` : ""}
+      <div class="title">${s.icon ? esc(s.icon) + " " : ""}${esc(tx(s.title))}</div>
+      ${s.notes ? `<div class="notes">${esc(tx(s.notes))}</div>` : ""}
+      ${fileLink(s.file)}${mapLink(s.map)}
+    </div>`;
+  const seal = tab => {
+    const t = SEALS[tab] || "";
+    return t ? `<div class="seal s${Math.min([...t].length, 4)}">${esc(t)}</div>` : "";
+  };
+  const dayHead = (tab, title, date) => `
+    <div class="dayhead">${seal(tab)}<div><h2>${esc(tx(title))}</h2>${date ? `<div class="date">${esc(tx(date))}</div>` : ""}</div></div>`;
+  const hotelCard = h => `
+    <div class="label">${lang === "en" ? `<span class="jp">今夜の宿</span>` : ""}${esc(u("tonight"))} · ${esc(tx(h.night))}</div>
+    <div class="card hotel">
+      <div class="title">🏨 ${esc(tx(h.name))}</div>
+      <div class="notes">${esc(tx(h.address))}</div>
+      ${h.onsen ? `<div class="notes">♨️ ${esc(tx(h.onsen))}</div>` : ""}
+      <dl>
+        <dt>${esc(u("checkIn"))}</dt><dd>${esc(tx(h.checkIn))}</dd>
+        <dt>${esc(u("checkOut"))}</dt><dd>${esc(tx(h.checkOut))}</dd>
+        <dt>${esc(u("phone"))}</dt><dd><a href="tel:${esc(h.phone.replace(/[^+\d]/g, ""))}">${esc(h.phone)}</a></dd>
+      </dl>
+      ${mapLink(h.map)}
+    </div>`;
+
+  const tabs = document.getElementById("tabs"), days = document.getElementById("days");
+  let current = Math.max(0, parseInt(location.hash.slice(1)) || 0);
+
+  function render() {
+    document.documentElement.lang = lang === "zh" ? "zh-HK" : "en";
+    document.title = tx(TRIP.title);
+    document.getElementById("title").textContent = tx(TRIP.title);
+    document.getElementById("subtitle").textContent = tx(TRIP.subtitle);
+    document.querySelector("footer").textContent = u("footer");
+    const pdf = document.getElementById("pdf");
+    pdf.textContent = u("pdf");
+    pdf.href = u("pdfFile");
+    // Opened as a plain file there is no PDF next to it — hide the button
+    pdf.hidden = !/^https?:$/.test(location.protocol);
+    const mapBtn = document.getElementById("maplink");
+    mapBtn.textContent = u("mapLink");
+    mapBtn.href = "map.html?lang=" + lang;
+    mapBtn.hidden = pdf.hidden;
+    const offlineBtn = document.getElementById("offline");
+    offlineBtn.textContent = u("offline");
+    // Needs a service worker, so only over https (or localhost)
+    offlineBtn.hidden = !("serviceWorker" in navigator) || !window.isSecureContext;
+    document.querySelectorAll(".lang button").forEach(b => b.setAttribute("aria-pressed", b.dataset.lang === lang));
+
+    const sections = [
+      ...TRIP.days.map(d => ({
+        tab: d.tab,
+        html: `${dayHead(d.tab, d.place, d.date)}
+          <div class="timeline">
+            ${d.stops.map(card).join("")}
+            ${d.hotel ? hotelCard(d.hotel) : ""}
+          </div>`
+      })),
+      ...(TRIP.info?.length ? [{ tab: "Info", html: `${dayHead("Info", u("info"))}<div class="timeline">${TRIP.info.map(card).join("")}</div>` }] : [])
+    ];
+
+    tabs.innerHTML = days.innerHTML = "";
+    sections.forEach((s, i) => {
+      const [dow, num] = s.tab.includes(" ") ? s.tab.split(" ") : ["✦", u("infoTab")];
+      tabs.insertAdjacentHTML("beforeend", `<button role="tab" data-i="${i}"><span class="dow">${esc(u("dow")[dow] || dow)}</span><span class="dnum">${esc(num)}</span></button>`);
+      days.insertAdjacentHTML("beforeend", `<section class="day" data-i="${i}">${s.html}</section>`);
+    });
+    current = Math.min(current, sections.length - 1);
+  }
+
+  function show(i) {
+    current = +i;
+    tabs.querySelectorAll("button").forEach(b => b.setAttribute("aria-selected", b.dataset.i == i));
+    days.querySelectorAll(".day").forEach(d => d.style.display = d.dataset.i == i ? "block" : "none");
+    tabs.querySelector(`[data-i="${i}"]`).scrollIntoView({ inline: "center", block: "nearest" });
+    try { history.replaceState(null, "", "?lang=" + lang + "#" + i); } catch {}
+    window.scrollTo(0, 0);
+  }
+
+  tabs.addEventListener("click", e => { const b = e.target.closest("button"); if (b) show(b.dataset.i); });
+  document.querySelector(".lang").addEventListener("click", e => {
+    const b = e.target.closest("button");
+    if (!b || b.dataset.lang === lang) return;
+    lang = b.dataset.lang;
+    store.set("lang", lang);
+    render();
+    show(current);
+  });
+
+  render();
+  show(current);
+</script>
+<script src="config.js"></script>
+<script src="offline.js"></script>
+</body>
+</html>

@@ -1,0 +1,188 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#a3352a">
+<title>Trip map</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icons/icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<!-- Leaflet is kept in vendor/ (not a CDN) so the map still opens with no signal -->
+<link rel="stylesheet" href="vendor/leaflet/leaflet.css">
+<script src="vendor/leaflet/leaflet.js"></script>
+<script src="config.js"></script>
+<script src="map-data.js"></script>
+<style>
+  :root {
+    color-scheme: light;
+    --paper:#f6efe3; --card:#fffcf6; --ink:#2a2320; --muted:#6e625a; --line:#e6d8c3; --momiji:#b5382a;
+  }
+  * { box-sizing:border-box; }
+  html, body { height:100%; margin:0; }
+  body { display:flex; flex-direction:column; background:var(--paper); color:var(--ink);
+         font:16px/1.4 -apple-system, "Segoe UI", Roboto, sans-serif; }
+
+  header { display:flex; align-items:center; gap:10px; padding:calc(10px + env(safe-area-inset-top)) 14px 10px; color:#fff7ea;
+           background:linear-gradient(170deg, #4e1a16 0%, #a3352a 70%, #d4762a 100%); }
+  header a.back { color:#fff7ea; text-decoration:none; font-weight:600; white-space:nowrap; }
+  header h1 { flex:1; margin:0; font-size:1.1rem; font-weight:700; text-align:center; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .lang { display:flex; border:1px solid rgba(255,247,234,.6); border-radius:999px; overflow:hidden; flex:0 0 auto; }
+  .lang button { font:inherit; font-size:.85rem; padding:4px 10px; border:0; background:transparent; color:#fff7ea; cursor:pointer; }
+  .lang button[aria-pressed="true"] { background:#fff7ea; color:var(--momiji); font-weight:700; }
+
+  nav { display:flex; gap:6px; overflow-x:auto; padding:8px 12px; border-bottom:1px solid var(--line); scrollbar-width:none; }
+  nav::-webkit-scrollbar { display:none; }
+  nav button { flex:0 0 auto; font:inherit; font-size:.9rem; padding:5px 10px; border-radius:999px; cursor:pointer;
+               border:1px solid var(--line); background:var(--card); color:var(--ink); display:flex; align-items:center; gap:6px; }
+  nav button i { width:10px; height:10px; border-radius:50%; display:inline-block; }
+  nav button[aria-pressed="true"] { background:var(--ink); border-color:var(--ink); color:#fff; }
+
+  #map { flex:1; min-height:0; background:#e8e2d6; }
+  #summary { padding:8px 14px calc(8px + env(safe-area-inset-bottom)); font-size:.9rem; color:var(--muted); border-top:1px solid var(--line); background:var(--card); }
+  #summary b { color:var(--ink); }
+
+  /* Pins: day-coloured circle with the itinerary's emoji; hotels are larger squares */
+  .pin { display:grid; place-items:center; width:30px; height:30px; border-radius:50%; font-size:15px;
+         background:#fff; border:3px solid var(--c); box-shadow:0 1px 4px rgba(0,0,0,.35); }
+  .pin.hotel { width:34px; height:34px; border-radius:9px; background:var(--c); font-size:17px; border-color:#fff; }
+  .leaflet-tooltip.lbl { padding:1px 6px; font-size:12px; font-weight:600; color:var(--ink); background:rgba(255,252,246,.94);
+                         border:1px solid var(--line); border-radius:6px; box-shadow:none; white-space:nowrap; }
+  .leaflet-tooltip.lbl::before { display:none; }
+  /* Labels: hotels always; every stop once zoomed in or when one day is picked */
+  #map .leaflet-tooltip.lbl { display:none; }
+  #map .leaflet-tooltip.lbl.hotel, #map.labels .leaflet-tooltip.lbl { display:block; }
+
+  .leaflet-popup-content { margin:10px 12px; font-size:14px; }
+  .pop-title { font-weight:700; font-size:15px; margin-bottom:2px; }
+  .pop-meta { color:var(--muted); margin-bottom:6px; }
+  .pop a { color:var(--momiji); font-weight:600; }
+
+  /* Shown by offline.js when the phone has no connection */
+  .offline-badge { position:fixed; left:50%; transform:translateX(-50%); bottom:calc(52px + env(safe-area-inset-bottom)); z-index:1000;
+                   padding:5px 12px; border-radius:999px; background:var(--ink); color:#fff; font-size:.82rem; box-shadow:0 2px 8px rgba(0,0,0,.25); }
+</style>
+</head>
+<body>
+<header>
+  <a class="back" id="back" href="index.html">← </a>
+  <h1 id="title"></h1>
+  <div class="lang" role="group" aria-label="Language">
+    <button data-lang="en">EN</button><button data-lang="zh">繁中</button>
+  </div>
+</header>
+<nav id="days"></nav>
+<div id="map"></div>
+<div id="summary"></div>
+
+<script>
+const DAYS = self.TRIP_MAP.days;
+const TRIP_TITLE = self.TRIP_MAP.title;
+const COLORS = ["#b5382a", "#c9651f", "#b8860b", "#3d7a4f", "#2e5f8a", "#7a4a8c", "#1f7a7a", "#8c5a2b", "#c2477a", "#4f6fb0"];
+
+const UI = {
+  en: { back: "Itinerary", title: "Trip map", all: "All days", maps: "Open in Google Maps", km: "km of driving",
+        total: "driving days", day: n => "Day " + n },
+  zh: { back: "行程", title: "行程地圖", all: "全部日子", maps: "在 Google 地圖開啟", km: "公里車程",
+        total: "日自駕", day: n => "第 " + n + " 日" },
+};
+const store = { get: k => { try { return localStorage.getItem(k); } catch { return null; } },
+                set: (k, v) => { try { localStorage.setItem(k, v); } catch {} } };
+const urlLang = new URLSearchParams(location.search).get("lang");
+let lang = UI[urlLang] ? urlLang : (UI[store.get("lang")] ? store.get("lang") : "en");
+const u = k => UI[lang][k];
+const tx = v => v == null ? "" : typeof v === "string" ? v : (v[lang] ?? v.en);
+const esc = s => String(s ?? "").replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+const dayLabel = d => u("day")(d.tab.split(" ")[1]);
+
+const map = L.map("map").setView([43.2, 141.8], 7);   // a view must exist before layers are added
+L.tileLayer(TRIP_CONFIG.tileUrl, { maxZoom: 18, attribution: TRIP_CONFIG.tileAttribution }).addTo(map);
+
+// One layer set per day. Each stop keeps its id so photos can be attached to it later.
+const layers = DAYS.map((d, i) => {
+  const c = COLORS[i % COLORS.length];
+  const route = L.polyline(d.line, { color: c, weight: 4, opacity: .85 }).addTo(map);
+  const markers = d.stops.map(s => {
+    const m = L.marker(s.ll, { icon: L.divIcon({ className: "", iconSize: s.hotel ? [34, 34] : [30, 30],
+      html: `<div class="pin${s.hotel ? " hotel" : ""}" style="--c:${c}">${s.icon}</div>` }), zIndexOffset: s.hotel ? 500 : 0 });
+    m.stop = s;
+    return m;
+  });
+  return { route, markers, color: c };
+});
+
+let current = -1;          // -1 = all days
+function render() {
+  document.documentElement.lang = lang === "zh" ? "zh-HK" : "en";
+  document.title = `${tx(TRIP_TITLE)} · ${u("title")}`;
+  document.getElementById("title").textContent = `${tx(TRIP_TITLE)} · ${u("title")}`;
+  const back = document.getElementById("back");
+  back.textContent = "← " + u("back");
+  back.href = "index.html?lang=" + lang;
+  document.querySelectorAll(".lang button").forEach(b => b.setAttribute("aria-pressed", b.dataset.lang === lang));
+
+  document.getElementById("days").innerHTML =
+    `<button data-i="-1">${esc(u("all"))}</button>` +
+    DAYS.map((d, i) => `<button data-i="${i}"><i style="background:${layers[i].color}"></i>${esc(dayLabel(d))}</button>`).join("");
+
+  layers.forEach((l, i) => l.markers.forEach(m => {
+    const s = m.stop, d = DAYS[i];
+    m.unbindTooltip().bindTooltip(esc(tx(s.title).split(" — ")[0].split(" (")[0].split("（")[0]),
+      { permanent: true, direction: "right", offset: [16, 0], className: "lbl" + (s.hotel ? " hotel" : "") });
+    m.unbindPopup().bindPopup(`<div class="pop" data-stop="${esc(s.id)}">
+      <div class="pop-title">${s.icon} ${esc(tx(s.title))}</div>
+      <div class="pop-meta">${esc(dayLabel(d))} · ${esc(tx(d.place))}${s.time ? " · " + esc(tx(s.time)) : ""}</div>
+      ${s.map ? `<a href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(s.map)}" target="_blank" rel="noopener">${esc(u("maps"))}</a>` : ""}
+    </div>`);
+  }));
+  show(current, false);
+}
+
+function show(i, fit = true) {
+  current = i;
+  document.querySelectorAll("#days button").forEach(b => b.setAttribute("aria-pressed", +b.dataset.i === i));
+  const seen = new Set();
+  layers.forEach((l, j) => {
+    const on = i === -1 || i === j;
+    l.route.setStyle({ opacity: on ? .85 : .2, weight: i === j ? 6 : 4 });
+    if (on) l.route.bringToFront();
+    l.markers.forEach(m => {
+      // In "all days" a hotel used two nights running shows once
+      const dup = i === -1 && seen.has(m.stop.pin);
+      seen.add(m.stop.pin);
+      if ((i !== -1 && !on) || dup) { map.removeLayer(m); return; }
+      m.addTo(map);
+    });
+  });
+  const d = DAYS[i];
+  document.getElementById("summary").innerHTML = i === -1
+    ? `<b>${esc(DAYS.length)} ${esc(u("total"))}</b> · ~${DAYS.reduce((s, d) => s + d.km, 0).toLocaleString()} ${esc(u("km"))}`
+    : `<b>${esc(dayLabel(d))} · ${esc(tx(d.place))}</b> · ~${d.km} ${esc(u("km"))}`;
+  updateLabels();
+  if (fit) map.fitBounds(i === -1 ? L.featureGroup(layers.map(l => l.route)).getBounds() : layers[i].route.getBounds(),
+                         { padding: [30, 30], maxZoom: 13 });
+  try { history.replaceState(null, "", "?lang=" + lang + "#" + (i === -1 ? "all" : i)); } catch {}
+}
+
+function updateLabels() {
+  document.getElementById("map").classList.toggle("labels", current !== -1 || map.getZoom() >= 10);
+}
+map.on("zoomend", updateLabels);
+
+document.getElementById("days").addEventListener("click", e => {
+  const b = e.target.closest("button"); if (b) show(+b.dataset.i);
+});
+document.querySelector(".lang").addEventListener("click", e => {
+  const b = e.target.closest("button");
+  if (!b || b.dataset.lang === lang) return;
+  lang = b.dataset.lang; store.set("lang", lang); render();
+});
+
+const h = location.hash.slice(1);
+current = /^\d+$/.test(h) && DAYS[+h] ? +h : -1;
+render();
+show(current);
+</script>
+<script src="offline.js"></script>
+</body>
+</html>
